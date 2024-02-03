@@ -3,7 +3,7 @@ library(tidyverse)
 library(daymetr)
 library(sf)
 
-setwd("C:/Users/cmg3/Box/Gilbert/apsim_mat")
+setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization")
 trials_df <- read_csv("small_charact_dt.csv") %>% distinct() %>% rename(X = Longitude, Y = Latitude)
 # Create and add location IDs
 locs_df <- dplyr::select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
@@ -55,8 +55,8 @@ for (trial_n in 1){ #1:nrow(trials_df)){
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
   write_dir <-  paste0("apsim/trial_",trial_n)
-  filename <- paste0("Soybean_",trial_n,".apsimx")
-  edit_apsimx(file = "Soybean.apsimx", wrt.dir = write_dir, edit.tag = paste0("_",trial_n),
+  filename <- paste0("trial_crct_edit_",trial_n,".apsimx")
+  edit_apsimx(file = "trial_crct_edit.apsimx", wrt.dir = write_dir, edit.tag = paste0("_",trial_n),
               node = "Clock", parm = "Start", value = paste0(trial_tmp$Year,"-01-01T00:00:00"))
   edit_apsimx(file = filename,  src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
               node = "Clock", parm = "End", value = paste0(as.character(as.numeric(trial_tmp$Year)+1),"-01-01T00:00:00"))
@@ -71,7 +71,7 @@ for (trial_n in 1){ #1:nrow(trials_df)){
 ".Simulations.WT.paddock.Manager folder.Tillage on fixed date"
 
 apsimx(file = "Soybean.apsimx")
-apsimx(file = "Soybean_1.apsimx", src.dir = "apsim/trial_1")
+apsimx(file = "trial_crct_edit_1.apsimx", src.dir = "apsim/trial_1")
 
 inspect_apsimx(file = filename,  src.dir = source_dir)
 

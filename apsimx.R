@@ -167,8 +167,13 @@ if (crop == "Maize"){
     )) 
 }
 
-merge_output <- group_by(daily_output, Period, id_trial) %>% summarize(across(where(is.numeric) & !c(DOY, Stage), mean), Start_DOY = min(DOY))
-charact_long <- left_join(trials_df, merge_output)
-
+trials_df <- select(trials_df, -Day, -Month)
+yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
+merge_output <- group_by(daily_output, Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
+  summarize(across(where(is.numeric) & !c(DOY), function(x){mean(x,na.omit=T)}), Start_DOY = min(DOY)) %>%
+  relocate(Period, id_trial, Rain) %>% relocate(Start_DOY, .after = last_col())
 wide_output <- pivot_wider(merge_output, names_from = Period, values_from = Rain:Start_DOY)
-characterization <- left_join(trials_df, wide_output)
+wide_output <- left_join(yields, wide_output)
+charact_x <- left_join(trials_df, wide_output)
+
+write_csv(charact_x, "charact_x.csv")

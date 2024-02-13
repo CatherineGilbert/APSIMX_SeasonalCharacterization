@@ -1,10 +1,10 @@
 library(apsimx)
 library(tidyverse)
 library(daymetr)
-library(sf)
+library(data.table)
 
-#maize is not in (maturities, reg parameters against a trial_corn_100 file, creating a corn template)
-crop <- "Soy"
+#maize is not in (reg parameters against a trial_corn_100 file)
+crop <- "Maize"
 
 setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization")
 trials_df <- read_csv("small_charact_dt.csv") %>% distinct() %>% rename(X = Longitude, Y = Latitude)
@@ -14,10 +14,10 @@ trials_df <- left_join(trials_df, locs_df)
 trials_df <- mutate(trials_df, id_trial = row_number())
 
 # Convert dates
-trials_df <- trials_df %>% dplyr::mutate(Planting_date = as.Date(Planting, format = "%m/%d/%Y"),
-                                         Day = format(Planting_date,"%d"),
-                                         Month = tolower(format(Planting_date,"%b")),
-                                         Year = format(Planting_date,"%Y")) 
+trials_df <- trials_df %>% dplyr::mutate(Planting = as.Date(Planting, format = "%m/%d/%Y"),
+                                         Day = format(Planting,"%d"),
+                                         Month = format(Planting,"%b"),
+                                         Year = format(Planting,"%Y")) 
 
 # Get weather, make met files
 locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
@@ -34,10 +34,12 @@ for (loc in 1:nrow(locyear_df)){
   attr(imp_met_tmp,"latitude") <- attr(met_tmp, "latitude") #so this is just correcting for that
   attr(imp_met_tmp,"longitude") <- attr(met_tmp, "longitude")
   write_apsim_met(imp_met_tmp, wrt.dir = "met", paste0("loc_",loc,".met"))
+  print(loc/nrow(locyear_df))
 }
 
 # Get soil, make soil file
 soil_profile_list = list()
+unlink("soils",recursive = T) ; dir.create("soils")
 for (loc in 1:nrow(locs_df)){
   locs_tmp <- locs_df[loc,]
   soil_profile_tmp <- get_ssurgo_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T)
@@ -64,7 +66,7 @@ for (loc in 1:nrow(locs_df)){
   soil_profile_list <- append(soil_profile_list, list(soil_profile_tmp))
   print(loc/nrow(locs_df))
 }
-write_rds(soil_profile_list, "soil_profile_list.rds")
+write_rds(soil_profile_list, "soils/soil_profile_list.rds")
 
 # Get what maturities of cultivar we'll use
 if (crop == "Soy"){
@@ -77,20 +79,25 @@ if (crop == "Soy"){
     Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
   )) %>% mutate(Mat = paste0("Generic_MG",Mat))
 }
-if (crop == "Corn"){
+
+if (crop == "Maize"){
   trials_df <- trials_df %>%
     mutate(Mat = case_when(
-      Genetics > 10 ~ "10",
-      Genetics <= -2 ~ "000",
-      Genetics == -1 ~ "00",
-      Genetics == 0 ~ "0",
-      Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
-    )) %>% mutate(Mat = paste0("Generic_MG",Mat))
+      Genetics <= 1 ~ "80",
+      Genetics == 2 ~ "90",
+      Genetics == 3 ~ "95",
+      Genetics == 4 ~ "103",
+      Genetics == 5 ~ "108",
+      Genetics == 6 ~ "112",
+      Genetics == 7 ~ "115",
+      Genetics == 8 ~ "120",
+      Genetics >= 9 ~ "130",
+    )) %>% mutate(Mat = paste0("B_",Mat))
 }
 
 # Create APSIM files
 unlink("apsim",recursive = T) ; dir.create("apsim")
-file.copy(from = paste0(crop,"_Template.apsimx"), to = paste0(crop,"_.apsimx"), overwrite = T)
+file.copy(from = paste0("template_models/",crop,"_Template.apsimx"), to = paste0("template_models/",crop,"_.apsimx"), overwrite = T)
 
 for (trial_n in 1:nrow(trials_df)){ #
   trial_tmp <- trials_df[trial_n,]
@@ -98,7 +105,7 @@ for (trial_n in 1:nrow(trials_df)){ #
   source_dir <- paste0("apsim/trial_",trial_n)
   write_dir <-  paste0("apsim/trial_",trial_n)
   filename <- paste0(crop, "_", trial_n,".apsimx")
-  edit_apsimx(file = paste0(crop,"_.apsimx"), wrt.dir = write_dir, edit.tag = trial_n,
+  edit_apsimx(file = paste0(crop,"_.apsimx"), src.dir = "template_models", wrt.dir = write_dir, edit.tag = trial_n,
               node = "Clock", parm = "Start", value = paste0(trial_tmp$Year,"-01-01T00:00:00"), verbose = F)
   edit_apsimx(file = filename,  src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
               node = "Clock", parm = "End", value = paste0(trial_tmp$Year,"-12-31T00:00:00"), verbose = F)
@@ -127,36 +134,41 @@ for (trial_n in 1:nrow(trials_df)){ #
   print(trial_n / nrow(trials_df))
 }
 
+# Merge Outputs
 outfiles <- list.files("apsim/", pattern = "_out", recursive = T)
+daily_output <- data.table::rbindlist(lapply(outfiles, function(x){read_csv(paste0("apsim/",x))}))
+daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year)
 
-merge_out <- function(x){
-
-  merge_tmp <- read_csv(paste0("apsim/",x))
-    
-  # Soybean Periods
-  if (crop == "Soy"){
-    merge_tmp <- merge_tmp %>%
-      mutate(Period = case_when(
-        Stage == 1 & Month < 6 ~ "0", #beginning to sowing   
-        Stage >= 1 & Stage < 4 ~ "1", #sowing to flowering  
-        Stage >= 4 & Stage < 6 ~ "2", #flowering to start grain fill   
-        Stage >= 6 & Stage < 7.5 ~ "3", #start grain fill to mid grain fill   
-        Stage >= 7.5 & Stage <= 9 ~ "4", #mid grain fill to end grain fill  
-        Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
-        Stage == 1 & Month >= 6 ~ "6", #harvest to end
+# Soybean Periods
+if (crop == "Soy"){
+  daily_output <- daily_output %>%
+    mutate(Period = case_when(
+      Stage == 1 & DOY < 180 ~ "0", #beginning to sowing  
+      Stage == 1 & DOY >= 180 ~ "6", #harvest to end
+      Stage >= 1 & Stage < 4 ~ "1", #sowing to flowering  
+      Stage >= 4 & Stage < 6 ~ "2", #flowering to start grain fill   
+      Stage >= 6 & Stage < 7.5 ~ "3", #start grain fill to mid grain fill   
+      Stage >= 7.5 & Stage <= 9 ~ "4", #mid grain fill to end grain fill  
+      Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
     )) 
-  }
-  
-  merge_tmp <- merge_tmp %>% group_by(Period) %>% select(-CheckpointID,-SimulationID,-Zone,-Year,-Month,-Day) %>%
-    summarize(id_trial = mean(id_trial), Rain = mean(Rain), Radn = mean(Radn), MaxT = mean(MaxT),
-              MinT = mean(MinT), Yieldkgha = mean(Yieldkgha), FracGrowthRate = mean(FracGrowthRate),
-              NutrientStress = mean(NutrientStress), TempStress = mean(TempStress), WaterStress = mean(WaterStress),
-              Date = max(Date))
-
-  return(merge_tmp)
 }
 
-merge_output <- data.table::rbindlist(lapply(outfiles, merge_out))
+# Maize Periods
+if (crop == "Maize"){
+  daily_output <- daily_output %>%
+    mutate(Period = case_when(
+      Stage == 1 & DOY <= 180 ~ "0", #beginning to sowing   
+      Stage == 1 & DOY > 180 ~ "6", #harvest to end
+      Stage >= 1 & Stage < 4 ~ "1", #sowing to endjuvenile
+      Stage >= 4 & Stage < 6 ~ "2", #endjuvenile to floral initiation
+      Stage >= 6 & Stage < 8 ~ "3", #floral initiation to start grain fill 
+      Stage >= 8 & Stage <= 9 ~ "4", #start grain fill to end grain fill  
+      Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
+    )) 
+}
 
-join_output <- left_join(trials_df, merge_output)
-esquisser(join_output)
+merge_output <- group_by(daily_output, Period, id_trial) %>% summarize(across(where(is.numeric) & !c(DOY, Stage), mean), Start_DOY = min(DOY))
+charact_long <- left_join(trials_df, merge_output)
+
+wide_output <- pivot_wider(merge_output, names_from = Period, values_from = Rain:Start_DOY)
+characterization <- left_join(trials_df, wide_output)

@@ -1,10 +1,10 @@
-!data from DayMet obtained through daymetr R pacakge. retrieved:  2024-02-02 14:24:42.556582
+!data from DayMet obtained through daymetr R pacakge. retrieved:  2024-02-12 18:06:03.333794
 [weather.met.weather]
-site = site =  noname
-latitude = latitude = 47.7389
-longitude = 0
+site =  noname
+latitude = 47.7389
+longitude = -97.5708
 tav = 4.76086575342466
-amp = 11.5931141552511
+amp =  34.32
 year day radn maxt mint rain vp swe
 () () (MJ/m2/day) (oC) (oC) (mm) (hPa) (kg/m2)
 2002 1 4.1158627383 -11.38 -21.44 0 1.1017 0

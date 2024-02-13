@@ -3,11 +3,16 @@ library(tidyverse)
 library(daymetr)
 library(sf)
 
+#maize is not in (maturities, reg parameters against a trial_corn_100 file, creating a corn template)
+crop <- "Soy"
+
 setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization")
 trials_df <- read_csv("small_charact_dt.csv") %>% distinct() %>% rename(X = Longitude, Y = Latitude)
-# Create and add location IDs
+# Create and add location IDs and trial ids
 locs_df <- dplyr::select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
+trials_df <- mutate(trials_df, id_trial = row_number())
+
 # Convert dates
 trials_df <- trials_df %>% dplyr::mutate(Planting_date = as.Date(Planting, format = "%m/%d/%Y"),
                                          Day = format(Planting_date,"%d"),
@@ -25,57 +30,133 @@ for (loc in 1:nrow(locyear_df)){
                         silent = FALSE)
   na_met_tmp <- napad_apsim_met(met_tmp)
   imp_met_tmp <- impute_apsim_met(na_met_tmp)
+  attr(imp_met_tmp,"site") <- attr(met_tmp, "site") #currently seems to be a bug where impute_apsim_met messes with the formatting of the attributes
+  attr(imp_met_tmp,"latitude") <- attr(met_tmp, "latitude") #so this is just correcting for that
+  attr(imp_met_tmp,"longitude") <- attr(met_tmp, "longitude")
   write_apsim_met(imp_met_tmp, wrt.dir = "met", paste0("loc_",loc,".met"))
 }
 
 # Get soil, make soil file
-#soil_table_list = list()
 soil_profile_list = list()
 for (loc in 1:nrow(locs_df)){
   locs_tmp <- locs_df[loc,]
-  #soil_table_tmp <- get_ssurgo_tables(lonlat = c(locs_tmp$X,locs_tmp$Y))
-  #soil_table_list <- append(soil_table_list, list(soil_table_tmp))
-  soil_profile_tmp <- get_ssurgo_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y))
+  soil_profile_tmp <- get_ssurgo_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T)
+  
+  horizon <- soil_profile_tmp[[1]]$soil 
+  
+  soilwat <- soilwat_parms() #creating SWCON in SoilWater parameters
+  PO <- 1-horizon$BD/2.65
+  soilwat$SWCON <- (PO-horizon$DUL)/PO
+  soilwat$SWCON <- ifelse(soilwat$SWCON < 0, 0, soilwat$SWCON)
+  soilwat$Thickness <- horizon$Thickness 
+  soil_profile_tmp[[1]]$soilwat <- soilwat
+  
+  initwat <- initialwater_parms() #set initial water to reasonable values
+  initwat$InitialValues <- horizon$DUL
+  initwat$Thickness <- horizon$Thickness
+  soil_profile_tmp[[1]]$initialwater <- initwat
+  
+  oc_min <- 0.001 #set minimum carbon content in soils
+  given_oc <- soil_profile_tmp[[1]][["soil"]]$Carbon
+  soil_profile_tmp[[1]][["soil"]]$Carbon <- ifelse(given_oc < oc_min, oc_min, given_oc) 
+  
   write_rds(soil_profile_tmp, file = paste0("soils/soil_profile_",loc))
   soil_profile_list <- append(soil_profile_list, list(soil_profile_tmp))
   print(loc/nrow(locs_df))
 }
-#write_rds(soil_table_list, "./soil_table_list.rds")
 write_rds(soil_profile_list, "soil_profile_list.rds")
 
-#maturity is not in
-#sow on date is not in
-#maize is not in
-#the soil profiles collected don't have a water component
-#all files are not running outside of the program itself
+# Get what maturities of cultivar we'll use
+if (crop == "Soy"){
+  trials_df <- trials_df %>%
+  mutate(Mat = case_when(
+    Genetics > 10 ~ "10",
+    Genetics <= -2 ~ "000",
+    Genetics == -1 ~ "00",
+    Genetics == 0 ~ "0",
+    Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
+  )) %>% mutate(Mat = paste0("Generic_MG",Mat))
+}
+if (crop == "Corn"){
+  trials_df <- trials_df %>%
+    mutate(Mat = case_when(
+      Genetics > 10 ~ "10",
+      Genetics <= -2 ~ "000",
+      Genetics == -1 ~ "00",
+      Genetics == 0 ~ "0",
+      Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
+    )) %>% mutate(Mat = paste0("Generic_MG",Mat))
+}
 
+# Create APSIM files
 unlink("apsim",recursive = T) ; dir.create("apsim")
-for (trial_n in 1){ #1:nrow(trials_df)){
+file.copy(from = paste0(crop,"_Template.apsimx"), to = paste0(crop,"_.apsimx"), overwrite = T)
+
+for (trial_n in 1:nrow(trials_df)){ #
   trial_tmp <- trials_df[trial_n,]
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
   write_dir <-  paste0("apsim/trial_",trial_n)
-  filename <- paste0("trial_crct_edit_",trial_n,".apsimx")
-  edit_apsimx(file = "trial_crct_edit.apsimx", wrt.dir = write_dir, edit.tag = paste0("_",trial_n),
-              node = "Clock", parm = "Start", value = paste0(trial_tmp$Year,"-01-01T00:00:00"))
+  filename <- paste0(crop, "_", trial_n,".apsimx")
+  edit_apsimx(file = paste0(crop,"_.apsimx"), wrt.dir = write_dir, edit.tag = trial_n,
+              node = "Clock", parm = "Start", value = paste0(trial_tmp$Year,"-01-01T00:00:00"), verbose = F)
   edit_apsimx(file = filename,  src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-              node = "Clock", parm = "End", value = paste0(as.character(as.numeric(trial_tmp$Year)+1),"-01-01T00:00:00"))
-  #edit_apsimx(file = filename,  src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-  #            node = "Manager", manager.child = "SowingRule", parm = "StartDate", value = paste0(trial_tmp$day,"-",trial_tmp$month))
+              node = "Clock", parm = "End", value = paste0(trial_tmp$Year,"-12-31T00:00:00"), verbose = F)
   edit_apsimx(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-              node = "Weather", value = paste0(getwd(),"/met/loc_",trial_tmp$id_loc,".met"))
+              node = "Weather", value = paste0(getwd(),"/met/loc_",trial_tmp$id_loc,".met"), verbose = F)
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Manager", manager.child = "Sow on a fixed date",
+              parm = "SowDate", value = paste0(trial_tmp$Day,"-",trial_tmp$Month), verbose = F)
+  edit_apsimx(filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T, node = "Crop", parm = "SowDate", 
+              value = paste0(trial_tmp$Day,"-",trial_tmp$Month), verbose = F)
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Crop", parm = "CultivarName", value = trial_tmp$Mat, verbose = F)
   edit_apsimx_replace_soil_profile(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-                                   soil.profile = soil_profile_list[[trial_tmp$id_loc]][[1]])
+                                  soil.profile = soil_profile_list[[trial_tmp$id_loc]][[1]], verbose = F)
+  print(trial_n / nrow(trials_df))
 }
 
-".Simulations.WT.paddock.Manager folder.Tillage on fixed date"
+# Run APSIM files, create outputs
+output <- data.frame()
+for (trial_n in 1:nrow(trials_df)){ #
+  source_dir <- paste0("apsim/trial_",trial_n)
+  filename <- paste0(crop, "_", trial_n,".apsimx")
+  output_tmp <- apsimx(filename, src.dir = source_dir)
+  output_tmp <- mutate(output_tmp, "id_trial" = trial_n) 
+  write_csv(output_tmp, file = paste0(source_dir,"/",crop,"_",trial_n,"_out.csv"))
+  print(trial_n / nrow(trials_df))
+}
 
-apsimx(file = "Soybean.apsimx")
-apsimx(file = "trial_crct_edit_1.apsimx", src.dir = "apsim/trial_1")
+outfiles <- list.files("apsim/", pattern = "_out", recursive = T)
 
-inspect_apsimx(file = filename,  src.dir = source_dir)
+merge_out <- function(x){
 
-inspect_apsimx_replacement(file = "trial_crct.apsimx", 
-                           root = list("Manager"), node = "Clock", parm)
+  merge_tmp <- read_csv(paste0("apsim/",x))
+    
+  # Soybean Periods
+  if (crop == "Soy"){
+    merge_tmp <- merge_tmp %>%
+      mutate(Period = case_when(
+        Stage == 1 & Month < 6 ~ "0", #beginning to sowing   
+        Stage >= 1 & Stage < 4 ~ "1", #sowing to flowering  
+        Stage >= 4 & Stage < 6 ~ "2", #flowering to start grain fill   
+        Stage >= 6 & Stage < 7.5 ~ "3", #start grain fill to mid grain fill   
+        Stage >= 7.5 & Stage <= 9 ~ "4", #mid grain fill to end grain fill  
+        Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
+        Stage == 1 & Month >= 6 ~ "6", #harvest to end
+    )) 
+  }
+  
+  merge_tmp <- merge_tmp %>% group_by(Period) %>% select(-CheckpointID,-SimulationID,-Zone,-Year,-Month,-Day) %>%
+    summarize(id_trial = mean(id_trial), Rain = mean(Rain), Radn = mean(Radn), MaxT = mean(MaxT),
+              MinT = mean(MinT), Yieldkgha = mean(Yieldkgha), FracGrowthRate = mean(FracGrowthRate),
+              NutrientStress = mean(NutrientStress), TempStress = mean(TempStress), WaterStress = mean(WaterStress),
+              Date = max(Date))
 
-apsimx("Soybean_1.apsimx", src.dir = "apsim/trial_1")
+  return(merge_tmp)
+}
+
+merge_output <- data.table::rbindlist(lapply(outfiles, merge_out))
+
+join_output <- left_join(trials_df, merge_output)
+esquisser(join_output)

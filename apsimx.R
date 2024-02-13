@@ -167,6 +167,7 @@ if (crop == "Maize"){
     )) 
 }
 
+# Format Outputs into the Characterization
 trials_df <- select(trials_df, -Day, -Month)
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
 merge_output <- group_by(daily_output, Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
@@ -176,4 +177,6 @@ wide_output <- pivot_wider(merge_output, names_from = Period, values_from = Rain
 wide_output <- left_join(yields, wide_output)
 charact_x <- left_join(trials_df, wide_output)
 
-write_csv(charact_x, "charact_x.csv")
+unlink("output",recursive = T) ; dir.create("output")
+write_csv(charact_x, "output/charact_x.csv")
+write_csv(daily_output, "output/daily_charact_x.csv")

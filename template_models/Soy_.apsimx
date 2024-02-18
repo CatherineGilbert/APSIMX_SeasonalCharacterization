@@ -862,8 +862,7 @@
               "VariableNames": [
                 "[Clock].Today as Date",
                 "[Clock].Today.Year as Year",
-                "[Clock].Today.Month as Month",
-                "[Clock].Today.Day as Day",
+                "[Clock].Today.DayOfYear as DOY",
                 "[Phenology].CurrentStageName as StageName",
                 "[Phenology].Stage as Stage",
                 "[Weather].Rain as Rain",

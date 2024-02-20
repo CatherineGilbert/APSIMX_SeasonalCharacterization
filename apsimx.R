@@ -201,4 +201,6 @@ charact_x <- left_join(trials_df, wide_output)
 
 unlink("output",recursive = T) ; dir.create("output")
 write_csv(charact_x, "output/charact_x.csv")
-write_csv(daily_output, "output/daily_charact_x.csv")
+
+daily_charact_x <- left_join(trials_df, daily_output)
+write_csv(daily_charact_x, "output/daily_charact_x.csv")

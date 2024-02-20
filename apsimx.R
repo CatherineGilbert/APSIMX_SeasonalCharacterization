@@ -3,11 +3,10 @@ library(tidyverse)
 library(daymetr)
 library(data.table)
 
-#maize is not in (reg parameters against a trial_corn_100 file)
-crop <- "Soy"
+codes_dir <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
+setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output") #where the output will go
 
-codes_dir <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
+crop <- "Soy"
 
 trials_df <- read_csv("small_charact_dt.csv") 
 trials_df <- trials_df %>% distinct() %>% rename(X = Longitude, Y = Latitude)
@@ -26,6 +25,7 @@ trials_df <- trials_df %>% dplyr::mutate(Planting = as.Date(Planting, format = "
 locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
   mutate(first_year = min(Year), last_year = max(Year)) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
 unlink("met",recursive = T) ; dir.create("met")
+
 for (loc in 1:nrow(locyear_df)){
   locyear_tmp <- locyear_df[loc,]
   met_tmp <- get_daymet2_apsim_met(lonlat = c(locyear_tmp$X,locyear_tmp$Y), 
@@ -43,32 +43,41 @@ for (loc in 1:nrow(locyear_df)){
 # Get soil, make soil file
 soil_profile_list = list()
 unlink("soils",recursive = T) ; dir.create("soils")
-for (loc in 1:nrow(locs_df)){
-  locs_tmp <- locs_df[loc,]
-  soil_profile_tmp <- tryCatch(get_ssurgo_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T),
-                               error = function(e){soil_profile_tmp <- list(get_isric_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T))})
-  
-  horizon <- soil_profile_tmp[[1]]$soil 
-  
-  soilwat <- soilwat_parms() #creating SWCON in SoilWater parameters
-  PO <- 1-horizon$BD/2.65
-  soilwat$SWCON <- (PO-horizon$DUL)/PO
-  soilwat$SWCON <- ifelse(soilwat$SWCON < 0, 0, soilwat$SWCON)
-  soilwat$Thickness <- horizon$Thickness 
-  soil_profile_tmp[[1]]$soilwat <- soilwat
-  
-  initwat <- initialwater_parms() #set initial water to reasonable values
-  initwat$InitialValues <- horizon$DUL
-  initwat$Thickness <- horizon$Thickness
-  soil_profile_tmp[[1]]$initialwater <- initwat
-  
-  oc_min <- 0.001 #set minimum carbon content in soils
-  given_oc <- soil_profile_tmp[[1]][["soil"]]$Carbon
-  soil_profile_tmp[[1]][["soil"]]$Carbon <- ifelse(given_oc < oc_min, oc_min, given_oc) 
-  
-  write_rds(soil_profile_tmp, file = paste0("soils/soil_profile_",loc))
-  soil_profile_list <- append(soil_profile_list, list(soil_profile_tmp))
-  print(paste0("loc: ",loc,"   ",round(loc/nrow(locs_df),4)))
+locs_df$got_soil <- NA
+
+ids_needs_soil <- locs_df[locs_df$got_soil == F | is.na(locs_df$got_soil),]$id_loc
+for (id in ids_needs_soil){
+  locs_tmp <- locs_df[locs_df$id_loc == id,]
+  tryCatch({
+    soil_profile_tmp <- tryCatch(get_ssurgo_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T),
+                                 error = function(e){soil_profile_tmp <- list(get_isric_soil_profile(lonlat = c(locs_tmp$X,locs_tmp$Y), fix = T))})
+    
+    horizon <- soil_profile_tmp[[1]]$soil 
+    
+    soilwat <- soilwat_parms() #creating SWCON in SoilWater parameters
+    PO <- 1-horizon$BD/2.65
+    soilwat$SWCON <- (PO-horizon$DUL)/PO
+    soilwat$SWCON <- ifelse(soilwat$SWCON < 0, 0, soilwat$SWCON)
+    soilwat$Thickness <- horizon$Thickness 
+    soil_profile_tmp[[1]]$soilwat <- soilwat
+    
+    initwat <- initialwater_parms() #set initial water to reasonable values
+    initwat$InitialValues <- horizon$DUL
+    initwat$Thickness <- horizon$Thickness
+    soil_profile_tmp[[1]]$initialwater <- initwat
+    
+    oc_min <- 0.001 #set minimum carbon content in soils
+    given_oc <- soil_profile_tmp[[1]][["soil"]]$Carbon
+    soil_profile_tmp[[1]][["soil"]]$Carbon <- ifelse(given_oc < oc_min, oc_min, given_oc) 
+    
+    write_rds(soil_profile_tmp, file = paste0("soils/soil_profile_",id))
+    soil_profile_list[[as.character(id)]] <- soil_profile_tmp[[1]]
+    locs_df[locs_df$id_loc == id,"got_soil"] <- T
+    print(paste0("loc: ",id,"   ",round(which(ids_needs_soil == id)/length(ids_needs_soil),4)))
+  }, error = function(e){
+    locs_df[locs_df$id_loc == id,"got_soil"] <<- F
+    print(paste0("loc: ",id,"   ",round(which(ids_needs_soil == id)/length(ids_needs_soil),4),"  FAIL"))
+  })
 }
 write_rds(soil_profile_list, "soils/soil_profile_list.rds")
 
@@ -122,8 +131,10 @@ for (trial_n in 1:nrow(trials_df)){
               value = paste0(trial_tmp$Day,"-",trial_tmp$Month), verbose = F)
   edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
               node = "Crop", parm = "CultivarName", value = trial_tmp$Mat, verbose = F)
+  tryCatch({
   edit_apsimx_replace_soil_profile(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-                                  soil.profile = soil_profile_list[[trial_tmp$id_loc]][[1]], verbose = F)
+                                  soil.profile = soil_profile_list[[as.character(trial_tmp$id_loc)]], verbose = F)
+  }, error = function(e){})
   print(trial_n / nrow(trials_df))
 }
 
@@ -132,11 +143,13 @@ output <- data.frame()
 for (trial_n in 1:nrow(trials_df)){ #
   source_dir <- paste0("apsim/trial_",trial_n)
   filename <- paste0(crop, "_", trial_n,".apsimx")
-  output_tmp <- apsimx(filename, src.dir = source_dir)
-  output_tmp <- mutate(output_tmp, "id_trial" = trial_n) 
-  output <- rbind(output, output_tmp)
-  write_csv(output_tmp, file = paste0(source_dir,"/",crop,"_",trial_n,"_out.csv"))
-  print(trial_n / nrow(trials_df))
+  tryCatch({
+    output_tmp <- apsimx(filename, src.dir = source_dir)
+    output_tmp <- mutate(output_tmp, "id_trial" = trial_n) 
+    #output <- rbind(output, output_tmp)
+    write_csv(output_tmp, file = paste0(source_dir,"/",crop,"_",trial_n,"_out.csv"))
+    print(trial_n / nrow(trials_df))
+  }, error = function(e){print(paste0(trial_n / nrow(trials_df),"   FAIL"))})
 }
 
 # Merge Outputs

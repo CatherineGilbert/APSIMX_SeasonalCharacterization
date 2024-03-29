@@ -3,16 +3,18 @@ library(tidyverse)
 library(daymetr)
 library(data.table)
 library(parallel)  # For parallel computing
-Sys.setlocale("LC_ALL", "English_United States")
+#Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 
-codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+#codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
+codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
+#setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 
 
 crop <- "Soy"
-trials_df <- read_csv("small_charact_dt.csv") %>%
+trials_df <- read_csv(paste0(codes_dir,"/med_charact_dt.csv")) %>%
   distinct() %>%
   rename(X = Longitude, Y = Latitude) %>%
   mutate(id_trial = row_number())
@@ -31,8 +33,13 @@ trials_df <- trials_df %>%
 # Prepare locyear_df for parallel processing
 
 # Get weather, make met files
+#locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
+#  mutate(first_year = min(Year), last_year = max(Year)) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
+#enforce last ten years
+prev_year <- as.numeric(substr(Sys.time(),1,4)) - 1
 locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
-  mutate(first_year = min(Year), last_year = max(Year)) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
+  mutate(first_year = min(min(Year), prev_year - 10), last_year = prev_year) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
+
 unlink("met",recursive = T) ; dir.create("met")
 
 
@@ -139,6 +146,8 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 
 clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", "paste0", "dir.create", "file.copy", "tryCatch", "print"))
 
+#edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
+
 # Parallel APSIM files creation
 apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
   trial_tmp <- trials_df[trial_n,]
@@ -165,7 +174,6 @@ apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
   }, error = function(e){})
   invisible()
 })
-
 
 # Define the number of batches
 num_batches <- 10  # You can change this to run different percentages at a time
@@ -231,23 +239,43 @@ combined_output <- do.call(rbind, results)
 # Merge Outputs
 outfiles <- list.files("apsim/", pattern = "_out", recursive = T)
 daily_output <- data.table::rbindlist(lapply(outfiles, function(x){read_csv(paste0("apsim/",x),show_col_types = FALSE)}))
-daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year)
+daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>% arrange(id_trial)
+
+# Add cumulative precipitation and thermal time
+daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>% 
+  relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) 
 
 #keep before planting, substitute after harvest 
 #report field capacity, soil temperature before harvest
 #validate models using developmental checkpoints (day of start of period)
 
+
 # Soybean Periods
+if (FALSE){
+  daily_output <- daily_output %>%
+    mutate(Period = case_when(
+      Stage == 1 & DOY < 180 ~ "0", #beginning to sowing  
+      Stage == 1  & DOY >= 180 ~ "7", #harvest to end
+      Stage >= 1 & Stage < 4 ~ "1", #sowing to flowering  
+      Stage >= 4 & Stage < 6 ~ "2", #flowering to start grain fill   
+      Stage >= 6 & Stage < 7.5 ~ "3", #start grain fill to mid grain fill   
+      Stage >= 7.5 & Stage < 9 ~ "4", #mid grain fill to end grain fill  
+      Stage >= 9 & Stage < 10 ~ "5", #end grain fill to maturity
+      Stage >= 10 ~ "6" #maturity to harvest
+    )) 
+}
+
 if (crop == "Soy"){
   daily_output <- daily_output %>%
     mutate(Period = case_when(
       Stage == 1 & DOY < 180 ~ "0", #beginning to sowing  
-      Stage == 1 & DOY >= 180 ~ "6", #harvest to end
+      Stage == 1  & DOY >= 180 ~ "7", #harvest to end
       Stage >= 1 & Stage < 4 ~ "1", #sowing to flowering  
       Stage >= 4 & Stage < 6 ~ "2", #flowering to start grain fill   
       Stage >= 6 & Stage < 7.5 ~ "3", #start grain fill to mid grain fill   
-      Stage >= 7.5 & Stage <= 9 ~ "4", #mid grain fill to end grain fill  
-      Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
+      Stage >= 7.5 & Stage < 9 ~ "4", #mid grain fill to end grain fill  
+      Stage >= 9 & Stage < 10 ~ "5", #end grain fill to maturity
+      Stage >= 10 ~ "6" #maturity to harvest
     )) 
 }
 
@@ -256,21 +284,28 @@ if (crop == "Maize"){
   daily_output <- daily_output %>%
     mutate(Period = case_when(
       Stage == 1 & DOY <= 180 ~ "0", #beginning to sowing   
-      Stage == 1 & DOY > 180 ~ "6", #harvest to end
+      Stage == 1 & DOY > 180 ~ "7", #maturity to end
       Stage >= 1 & Stage < 4 ~ "1", #sowing to endjuvenile
       Stage >= 4 & Stage < 6 ~ "2", #endjuvenile to floral initiation
       Stage >= 6 & Stage < 8 ~ "3", #floral initiation to start grain fill 
-      Stage >= 8 & Stage <= 9 ~ "4", #start grain fill to end grain fill  
-      Stage > 9 & Stage <= 11 ~ "5", #end grain fill to harvest
+      Stage >= 8 & Stage < 9 ~ "4", #start grain fill to end grain fill  
+      Stage >= 9 & Stage < 10 ~ "5", #end grain fill to maturity
+      Stage >= 10 ~ "6", #end grain fill to maturity
     )) 
 }
 
 # Format Outputs into the Characterization
 trials_df <- select(trials_df, -Day, -Month)
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
-merge_output <- group_by(daily_output, Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
-  summarize(across(where(is.numeric) & !c(DOY), function(x){mean(x,na.omit=T)}), Start_DOY = min(DOY)) %>%
-  relocate(Period, id_trial, Rain) %>% relocate(Start_DOY, .after = last_col())
+merge_output <- daily_output %>% 
+  group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
+  mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>%
+  summarize(across(where(is.numeric) & !c(DOY,AccPrecip,AccTT), function(x){mean(x,na.omit=T)}), 
+            AccPrecip = max(AccPrecip), AccTT = max(AccTT),
+            Start_DOY = min(DOY)) %>%
+  relocate(Period, id_trial, Rain) %>% 
+  relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) %>%
+  relocate(Start_DOY, .after = last_col())
 wide_output <- pivot_wider(merge_output, names_from = Period, values_from = Rain:Start_DOY)
 wide_output <- left_join(yields, wide_output)
 charact_x <- left_join(trials_df, wide_output)
@@ -283,4 +318,4 @@ write_csv(daily_output, "output/daily_charact_x.csv")
 #calculate time duration for running the code:
 end_time <- Sys.time()
 duration <- end_time - start_time
-print( duration)
+print(duration)

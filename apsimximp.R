@@ -14,8 +14,7 @@ codes_dir <- "C:/Users/cmg3/OneDrive - University of Illinois - Urbana/Documents
 setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output") #where the output will go
 
 crop <- "Soy"
-trials_df <- read_csv(paste0(codes_dir,"/med_charact_dt.csv")) %>%
-  select(-"...1") %>%
+trials_df <- read_csv(paste0(codes_dir,"/nust_charact_dt.csv")) %>%
   distinct() %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>%

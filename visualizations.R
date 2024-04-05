@@ -1,16 +1,19 @@
 library(pheatmap)
 library(janitor)
+library(RColorBrewer)
+library(tidyverse)
+library(esquisse)
 
 var <- "Rain"
-gen <- 1
+gen <- 3
 
 varchoice <- daily_charact_x %>% ungroup() %>% 
-  select(where(is.numeric) & !c(DOY,Stage,id_trial,Yieldkgha,id_loc,Year,X,Y,Genetics,Period)) %>% names()
+  select(where(is.numeric) & !c(DOY,Stage,id_trial,Yieldkgha,Period)) %>% names()
 
 for(var in varchoice){
 
   var_mat <- filter(charact_x, Genetics == gen) %>% select(Site, starts_with(var)) %>% 
-    group_by(Site) %>% summarize(across(where(is.numeric), mean)) %>% column_to_rownames("Site") %>%
+    group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>% column_to_rownames("Site") %>%
     remove_empty(which = "rows") %>%
     as.matrix()
   
@@ -113,3 +116,4 @@ ggplot(btwn_sites) +
   geom_label(label = btwn_sites$Site, size = 3) +
   theme_minimal() +
   theme(legend.position = "none") 
+

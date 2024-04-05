@@ -1,3 +1,11 @@
+#change soybean summarization to R periods
+#get feedback from breeders on what they think is valuable and what kind of outputs they value
+#for correlations of yield sim + yieldba, can try reducing to just the checks, or compare means of sites
+#for over-performance / under-performance can use maturity checks as yield checks 
+#check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
+#investigate structural equation modeling
+#check simulation for very high predicted maturities, get rid of slow immortal plants
+
 library(apsimx)
 library(tidyverse)
 library(daymetr)
@@ -12,36 +20,45 @@ codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
 #setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
 setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 
-
-crop <- "Soy"
-trials_df <- read_csv(paste0(codes_dir,"/med_charact_dt.csv")) %>%
-  distinct() %>%
-  rename(X = Longitude, Y = Latitude) %>%
-  mutate(id_trial = row_number())
-locs_df <- select(trials_df, X, Y) %>%
-  distinct() %>%
-  mutate(id_loc = row_number())
+crop <- "Soy" #  !!! ask Sam if this can be set via a button 
+trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+  rename(X = Longitude, Y = Latitude)
+locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
-trials_df <- mutate(trials_df, id_trial = row_number())
-trials_df <- trials_df %>%
-  mutate(Planting = as.Date(Planting, format = "%m/%d/%Y"),
-         Day = format(Planting,"%d"),
-         Month = format(Planting,"%b"),
-         Year = format(Planting,"%Y"))
+trials_df <- trials_df %>% mutate(Planting = as.Date(Planting), Year = format(Planting,"%Y")) %>% 
+  mutate(sim_start = Planting %m-% months(2), sim_end = Planting %m+% months(8))
 
+# Get what maturities of cultivar we'll use
+if (crop == "Soy"){
+  trials_df <- trials_df %>%
+    mutate(Mat = case_when(
+      Genetics > 10 ~ "10",
+      Genetics <= -2 ~ "000",
+      Genetics == -1 ~ "00",
+      Genetics == 0 ~ "0",
+      Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
+    )) %>% mutate(Mat = paste0("Generic_MG",Mat))
+}
+
+if (crop == "Maize"){
+  corn_mats <- c(80,90,95,100,103,105,108,110,112,115,120,130)
+  trials_df <- trials_df %>%
+    mutate(Mat = corn_mats[which.min(abs(corn_mats - Genetics))[1]]) %>%
+    mutate(Mat = paste0("B_",as.character(Mat)))
+}
 
 # Prepare locyear_df for parallel processing
 
-# Get weather, make met files
-#locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
-#  mutate(first_year = min(Year), last_year = max(Year)) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
-#enforce last ten years
+# Get weather, make met files, enforce getting the last ten years of data so we can have seasonal norms for comparison
 prev_year <- as.numeric(substr(Sys.time(),1,4)) - 1
-locyear_df <- trials_df %>% select(X,Y,id_loc,Year) %>% unique() %>% group_by(id_loc) %>%
-  mutate(first_year = min(min(Year), prev_year - 10), last_year = prev_year) %>% select(-Year) %>% distinct() %>% arrange(id_loc)
+
+locyear_df <- trials_df %>% select(X,Y,id_loc, sim_start) %>% 
+  mutate(first_year = year(sim_start)) %>% 
+  select(-sim_start) %>% unique() %>% group_by(id_loc,X,Y) %>%
+  summarize(first_year = min(first_year)) %>%
+  mutate(first_year = min(first_year, prev_year - 10), last_year = prev_year) 
 
 unlink("met",recursive = T) ; dir.create("met")
-
 
 # Setup for parallel processing
 no_cores <- detectCores() - 2  # Reserve 2 cores for the system
@@ -110,32 +127,6 @@ for (id in ids_needs_soil){
 write_rds(soil_profile_list, "soils/soil_profile_list.rds")
 
 
-# Get what maturities of cultivar we'll use
-if (crop == "Soy"){
-  trials_df <- trials_df %>%
-    mutate(Mat = case_when(
-      Genetics > 10 ~ "10",
-      Genetics <= -2 ~ "000",
-      Genetics == -1 ~ "00",
-      Genetics == 0 ~ "0",
-      Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
-    )) %>% mutate(Mat = paste0("Generic_MG",Mat))
-}
-
-if (crop == "Maize"){
-  trials_df <- trials_df %>%
-    mutate(Mat = case_when(
-      Genetics <= 1 ~ "80",
-      Genetics == 2 ~ "90",
-      Genetics == 3 ~ "95",
-      Genetics == 4 ~ "103",
-      Genetics == 5 ~ "108",
-      Genetics == 6 ~ "112",
-      Genetics == 7 ~ "115",
-      Genetics == 8 ~ "120",
-      Genetics >= 9 ~ "130",
-    )) %>% mutate(Mat = paste0("B_",Mat))
-}
 # Create APSIM files preparation
 unlink("apsim", recursive = TRUE)
 dir.create("apsim")
@@ -156,16 +147,16 @@ apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
   write_dir <-  paste0("apsim/trial_",trial_n)
   filename <- paste0(crop, "_", trial_n,".apsimx")
   edit_apsimx(file = paste0(crop,"_.apsimx"), wrt.dir = write_dir, edit.tag = trial_n,
-              node = "Clock", parm = "Start", value = paste0(trial_tmp$Year,"-01-01T00:00:00"), verbose = F)
+              node = "Clock", parm = "Start", value = paste0(trial_tmp$sim_start,"T00:00:00"), verbose = F)
   edit_apsimx(file = filename,  src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
-              node = "Clock", parm = "End", value = paste0(trial_tmp$Year,"-12-31T00:00:00"), verbose = F)
+              node = "Clock", parm = "End", value = paste0(trial_tmp$sim_end,"T00:00:00"), verbose = F)
   edit_apsimx(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
               node = "Weather", value = paste0(getwd(),"/met/loc_",trial_tmp$id_loc,".met"), verbose = F)
   edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
               node = "Manager", manager.child = "Sow on a fixed date",
-              parm = "SowDate", value = paste0(trial_tmp$Day,"-",trial_tmp$Month), verbose = F)
+              parm = "SowDate", value = format(trial_tmp$Planting, "%d-%b"), verbose = F)
   edit_apsimx(filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T, node = "Crop", parm = "SowDate", 
-              value = paste0(trial_tmp$Day,"-",trial_tmp$Month), verbose = F)
+              value = format(trial_tmp$Planting, "%d-%b"), verbose = F)
   edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
               node = "Crop", parm = "CultivarName", value = trial_tmp$Mat, verbose = F)
   tryCatch({
@@ -245,10 +236,6 @@ daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>
 daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>% 
   relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) 
 
-#keep before planting, substitute after harvest 
-#report field capacity, soil temperature before harvest
-#validate models using developmental checkpoints (day of start of period)
-
 
 # Soybean Periods
 if (FALSE){
@@ -295,7 +282,6 @@ if (crop == "Maize"){
 }
 
 # Format Outputs into the Characterization
-trials_df <- select(trials_df, -Day, -Month)
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
 merge_output <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 

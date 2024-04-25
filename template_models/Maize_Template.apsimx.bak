@@ -870,7 +870,7 @@
                 "[Clock].Today as Date",
                 "[Clock].Today.Year as Year",
                 "[Clock].Today.DayOfYear as DOY",
-                "[Phenology].CurrentStageName as StageName",
+                "[Phenology].CurrentPhaseName as StageName",
                 "[Phenology].Stage as Stage",
                 "[Weather].Rain as Rain",
                 "[Weather].Radn as Radn",

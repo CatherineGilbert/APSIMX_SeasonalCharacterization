@@ -4,11 +4,15 @@ library(RColorBrewer)
 library(tidyverse)
 library(esquisse)
 
+trials_x <- read_csv("output/trials_x.csv")
+charact_x <- read_csv("output/charact_x.csv")
+daily_charact_x <- read_csv("output/daily_charact_x.csv")
+
 var <- "Rain"
 gen <- 3
 
-varchoice <- daily_charact_x %>% ungroup() %>% 
-  select(where(is.numeric) & !c(DOY,Stage,id_trial,Yieldkgha,Period)) %>% names()
+varchoice <- charact_x %>% ungroup() %>% 
+  select(where(is.numeric) & !c(Sttart_DOY,Stage,id_trial,Yieldkgha,Period)) %>% names()
 
 for(var in varchoice){
 
@@ -81,7 +85,7 @@ ggplot(dbtw_sites) +
 #within sites
 wthn_sites <- filtmet %>% summarize(acc_precip = sum(rain), acc_tt = sum(tt))
 
-site_n = "ames_ia"
+site_n = "casselton_nd"
 
 plot_dt <- filter(wthn_sites, Site == site_n) 
 ggplot(plot_dt) +

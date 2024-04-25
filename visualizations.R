@@ -5,7 +5,7 @@ library(tidyverse)
 library(esquisse)
 
 var <- "Rain"
-gen <- 3
+gen <- 0
 
 varchoice <- daily_charact_x %>% ungroup() %>% 
   select(where(is.numeric) & !c(DOY,Stage,id_trial,Yieldkgha,Period)) %>% names()

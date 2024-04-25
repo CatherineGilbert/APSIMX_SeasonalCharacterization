@@ -1,10 +1,22 @@
-#change soybean summarization to R periods
 #get feedback from breeders on what they think is valuable and what kind of outputs they value
-#for correlations of yield sim + yieldba, can try reducing to just the checks, or compare means of sites
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
 #check simulation for very high predicted maturities, get rid of slow immortal plants
+
+
+#for location comparison, standardize axes for acc tt and acc tt instead 
+#  of using real values so that you can plot all the years and locations
+
+#keeping the periods that move ahead to the following periods, not the ones that are extended indefinitely
+#note when crops die before reachin full maturity
+
+#build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
+#maturity / flowering validation > yield validation for describing the growing season
+
+#which of the seasonal variables are affecting the performance of the varieties
+#rate stress durin hte different periods as high med low? and use to describe environments 
+
 
 library(apsimx)
 library(tidyverse)

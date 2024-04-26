@@ -11,13 +11,15 @@ daily_charact_x <- read_csv("output/daily_charact_x.csv")
 var <- "Rain"
 gen <- 0
 
-varchoice <- charact_x %>% ungroup() %>% 
-  select(where(is.numeric) & !c(Sttart_DOY,Stage,id_trial,Yieldkgha,Period)) %>% names()
+varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>% names()
 
 for(var in varchoice){
 
-  var_mat <- filter(charact_x, Genetics == gen) %>% select(Site, starts_with(var)) %>% 
-    group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>% column_to_rownames("Site") %>%
+  var_mat <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% 
+    left_join(charact_x) %>% select(id_trial, Site, Period, starts_with(var)) %>%
+    pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
+    group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
+    column_to_rownames("Site") %>%
     remove_empty(which = "rows") %>%
     as.matrix()
   
@@ -30,8 +32,8 @@ for(var in varchoice){
       number_format = "%.2f", 
       legend = F,
       cluster_cols = F,
-      cluster_rows = F,
-      main = paste0("Means of ",var," by Site"))
+      cluster_rows = T,
+      main = paste0("Means of ",var," by Site (MG ",gen,")"))
 
 }
 

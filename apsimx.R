@@ -17,20 +17,6 @@
 
 # Start, set up trials_df -----
 
-
-#for location comparison, standardize axes for acc tt and acc tt instead 
-#  of using real values so that you can plot all the years and locations
-
-#keeping the periods that move ahead to the following periods, not the ones that are extended indefinitely
-#note when crops die before reachin full maturity
-
-#build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
-#maturity / flowering validation > yield validation for describing the growing season
-
-#which of the seasonal variables are affecting the performance of the varieties
-#rate stress durin hte different periods as high med low? and use to describe environments 
-
-
 library(apsimx)
 library(tidyverse)
 library(daymetr)
@@ -46,7 +32,7 @@ codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
 setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 
 crop <- "Soy" #  !!! ask Sam if this can be set via a button 
-trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+trials_df <- read_csv(paste0(codes_dir,"/med_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)

@@ -15,7 +15,6 @@
 #which of the seasonal variables are affecting the performance of the varieties
 #rate stress during the different periods as high med low? and use to describe environments 
 
-
 # Start, set up trials_df -----
 
 library(apsimx)
@@ -276,10 +275,12 @@ charact_x <- daily_output %>%
   relocate(Start_DOY, .after = last_col()) %>%
   arrange(id_trial)
 
+daily_charact_x <- daily_output
+
 unlink("output",recursive = T) ; dir.create("output")
 write_csv(trials_df, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
-write_csv(daily_output, "output/daily_charact_x.csv")
+write_csv(daily_charact_x, "output/daily_charact_x.csv")
 
 
 #calculate time duration for running the code:

@@ -1,8 +1,20 @@
+#update outputs and visaluzations
+#think about future labs and also company opportunities after i graduate next year
+
 #get feedback from breeders on what they think is valuable and what kind of outputs they value
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
-#set up meeting with german, check simulation for very high predicted maturities, get rid of slow immortal plants
+
+#for location comparison, standardize axes for acc tt and acc tt instead 
+#  of using real values so that you can plot all the years and locations
+
+#build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
+#maturity / flowering validation > yield validation for describing the growing season
+
+#which of the seasonal variables are affecting the performance of the varieties
+#rate stress during the different periods as high med low? and use to describe environments 
+
 
 # Start, set up trials_df -----
 
@@ -250,7 +262,8 @@ mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %
 trials_df <- left_join(trials_df, yields) %>% left_join(mats) 
 trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
   mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
-  relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
+  relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
+           DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
 
 charact_x <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 

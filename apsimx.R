@@ -258,20 +258,14 @@ trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
   relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
            DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
 
-#change stage seperation rule to before or after harvest date, not just 180
 # Periods
-daily_output %>% group_by(id_trial) %>% mutate(StageName = case_when(
-  Stage <= 2 & (Date <= where(daily_output[StageName == "ReadyForHarvesting","Date"])) ~ 1,
-  .default = StageName
-)) 
-
-daily_output <- mutate(daily_output, Period = case_when(
-  Stage < 2 & DOY < 180 ~ "0", 
-  Stage == 1 & DOY >= 180 ~ "10", 
+daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim)) %>% 
+  mutate(StageName = case_when(
+  Stage == 1 & (as_date(Date) < MatDate_Sim) ~ 0,
+  Stage == 1 & (as_date(Date) > MatDate_Sim) ~ 10,
   .default = as.character(floor(Stage) - 1)
-)) %>% mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
-
-
+)) %>% select(-MatDate_Sim) %>% 
+  mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
 
 charact_x <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 

@@ -259,11 +259,11 @@ trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
            DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
 
 # Periods
-daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim)) %>% 
-  mutate(StageName = case_when(
+daily_output <- daily_output %>% left_join(select(trials_df, id_trial, MatDate_Sim)) %>% 
+  mutate(Period = case_when(
   Stage == 1 & (as_date(Date) < MatDate_Sim) ~ 0,
   Stage == 1 & (as_date(Date) > MatDate_Sim) ~ 10,
-  .default = as.character(floor(Stage) - 1)
+  .default = floor(Stage) - 1
 )) %>% select(-MatDate_Sim) %>% 
   mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
 

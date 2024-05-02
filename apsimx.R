@@ -272,7 +272,7 @@ charact_x <- daily_output %>%
   mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>%
   summarize(across(where(is.numeric) & !c(DOY,AccPrecip,AccTT), function(x){mean(x,na.omit=T)}), 
             AccPrecip = max(AccPrecip), AccTT = max(AccTT),
-            Start_DOY = min(DOY)) %>%
+            Start_DOY = yday(min(Date))) %>% 
   relocate(id_trial, Period, Rain) %>% 
   relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) %>%
   relocate(Start_DOY, .after = last_col()) %>%

@@ -1,6 +1,3 @@
-#update outputs and visaluzations
-#think about future labs and also company opportunities after i graduate next year
-
 #get feedback from breeders on what they think is valuable and what kind of outputs they value
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
@@ -21,6 +18,8 @@ library(apsimx)
 library(tidyverse)
 library(daymetr)
 library(data.table)
+library(soilDB)
+library(spData)
 library(parallel)  # For parallel computing
 #Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
@@ -28,11 +27,13 @@ start_time <- Sys.time() # track running time
 
 #codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
 codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
+codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
 #setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
 setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
+setwd("~/Library/CloudStorage/Box-Box/nust_apsimx_output")
 
 crop <- "Soy" #  !!! ask Sam if this can be set via a button 
-trials_df <- read_csv(paste0(codes_dir,"/med_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+trials_df <- read_csv(paste0(codes_dir,"/nust_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
@@ -247,13 +248,6 @@ daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>
 daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>% 
   relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) 
 
-# Periods
-daily_output <- mutate(daily_output, Period = case_when(
-    Stage < 2 & DOY < 180 ~ "0", 
-    Stage == 1 & DOY >= 180 ~ "10", 
-    .default = as.character(floor(Stage) - 1)
-  )) %>% mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
-
 # Format Outputs into the Characterization
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
 mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %>%
@@ -263,6 +257,21 @@ trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
   mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
   relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
            DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
+
+#change stage seperation rule to before or after harvest date, not just 180
+# Periods
+daily_output %>% group_by(id_trial) %>% mutate(StageName = case_when(
+  Stage <= 2 & (Date <= where(daily_output[StageName == "ReadyForHarvesting","Date"])) ~ 1,
+  .default = StageName
+)) 
+
+daily_output <- mutate(daily_output, Period = case_when(
+  Stage < 2 & DOY < 180 ~ "0", 
+  Stage == 1 & DOY >= 180 ~ "10", 
+  .default = as.character(floor(Stage) - 1)
+)) %>% mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
+
+
 
 charact_x <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 

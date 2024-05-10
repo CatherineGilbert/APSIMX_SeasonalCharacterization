@@ -27,25 +27,34 @@ ui <- dashboardPage(
   dashboardBody(
     tags$head(
       tags$style(HTML("
-        .content-wrapper {
-          overflow-x: auto;
-        }
-        .main-sidebar {
-          overflow-x: hidden;
-        }
-        .box-body {
-          overflow-x: auto;
-        }
-      ")),
+      .content-wrapper {
+        overflow-x: auto;
+      }
+      .main-sidebar {
+        overflow-x: hidden;
+      }
+      .box-body {
+        overflow-x: auto;
+      }
+    ")),
       tags$script(HTML("
-        $(document).on('shiny:sessioninitialized', function(event) {
-          $('.sidebar-toggle').on('click', function() {
-            setTimeout(function() {
-              $(window).trigger('resize');
-            }, 250); // Adjust timing if necessary
-          });
+      $(document).on('shiny:sessioninitialized', function(event) {
+        $('.sidebar-toggle').on('click', function() {
+          setTimeout(function() {
+            $(window).trigger('resize');
+          }, 250); // Adjust timing if necessary
         });
-      "))
+      });
+
+      // Additional script to ensure plots resize correctly after rendering
+      $(document).on('shiny:value', function(event) {
+        if (event.name === 'heatmapPlot') {
+          setTimeout(function() {
+            $(window).trigger('resize');
+          }, 500);
+        }
+      });
+    "))
     ),
     tabItems(
       tabItem(tabName = "analysis",
@@ -90,8 +99,8 @@ ui <- dashboardPage(
 # Define server logic
 server <- function(input, output, session) {
   # Path to the scripts and results
-  codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main"
-  resultFolderPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output/output"
+  codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization"
+  resultFolderPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
   
   # Reactive values for storing the analysis state and the selected variable
   #analysisDone <- reactiveVal(FALSE)
@@ -116,7 +125,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$runAnalysis, {
-   
+    
     req(input$fileUpload)
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     
@@ -149,9 +158,9 @@ server <- function(input, output, session) {
     start_time <- Sys.time() # track running time
     
     
-    codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
+    codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
     #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #$setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
     crop <- "Soy" #  !!! ask Sam if this can be set via a button 
@@ -194,6 +203,7 @@ server <- function(input, output, session) {
     
     # Setup for parallel processing
     no_cores <- detectCores() - 2  # Reserve 2 cores for the system
+    print(paste("The num of core is " , no_cores))
     cl <- makeCluster(no_cores)
     clusterExport(cl, varlist = c("locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
     
@@ -459,9 +469,9 @@ server <- function(input, output, session) {
   
   output$viewData <- renderDT({
     req(analysisDone())
-    resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-    if(file.exists(resultsFilePath)) {
-      datatable(read.csv(resultsFilePath), extensions = 'Buttons', options = list(
+    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    if(file.exists(charact_x_path)) {
+      datatable(read.csv(charact_x_path), extensions = 'Buttons', options = list(
         dom = 'Bfrtip',
         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
       ), escape = FALSE)
@@ -472,9 +482,9 @@ server <- function(input, output, session) {
   
   output$varSelectUI <- renderUI({
     req(analysisDone())
-    resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-    if(file.exists(resultsFilePath)) {
-      data <- read.csv(resultsFilePath)
+    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    if(file.exists(charact_x_path)) {
+      data <- read.csv(charact_x_path)
       selectInput("varSelect", "Select Variable", choices = names(data)[-1])
     }
   })
@@ -485,9 +495,9 @@ server <- function(input, output, session) {
   
   output$boxplot <- renderPlot({
     req(analysisDone(), selectedVariable())
-    resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-    if(file.exists(resultsFilePath)) {
-      data <- read.csv(resultsFilePath)
+    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    if(file.exists(charact_x_path)) {
+      data <- read.csv(charact_x_path)
       ggplot(data, aes_string(x = names(data)[1], y = selectedVariable())) +
         geom_boxplot() +
         labs(x = "Site", y = selectedVariable()) +
@@ -498,9 +508,9 @@ server <- function(input, output, session) {
   output$downloadData <- downloadHandler(
     filename = function() { "results.csv" },
     content = function(file) {
-      resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-      if(file.exists(resultsFilePath)) {
-        file.copy(resultsFilePath, file)
+      charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+      if(file.exists(charact_x_path)) {
+        file.copy(charact_x_path, file)
       }
     }
   )
@@ -509,48 +519,65 @@ server <- function(input, output, session) {
     plotOutput("heatmapPlot", width = "70%", height = "600px")
   })
   
+  
+  
+  
+  
+  heatmap_data <- reactive({
+    req(input$heatmapSelect)  # Ensure a variable is selected
+    var <- input$heatmapSelect
+    # Logic to prepare the heatmap matrix
+    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    trials_x_path <-paste0(resultFolderPath,"/trials_x.csv")
+    daily_charact_x_path <- paste0(resultFolderPath,"/daily_charact_x.csv")
+    
+    trials_x <- read_csv(trials_x_path)
+    charact_x <- read_csv(charact_x_path)
+    daily_charact_x <- read_csv(daily_charact_x_path)
+    
+    if (file.exists(charact_x_path)) {
+      var <- input$heatmapSelect
+      var_mat <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% 
+        left_join(charact_x) %>% select(id_trial, Site, Period, starts_with(var)) %>%
+        pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
+        group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
+        column_to_rownames("Site") %>%
+        remove_empty(which = "rows") %>%
+        as.matrix()
+      
+      pheatmap(var_mat, angle_col = 45,
+               color=brewer.pal(11,"RdBu"),
+               fontsize = 10, 
+               display_numbers = round(var_mat, 2), 
+               number_color = "white", 
+               #scale = "column",
+               number_format = "%.2f", 
+               legend = F,
+               cluster_cols = F,
+               cluster_rows = T,
+               main = paste0("Means of ",var," by Site (MG ",gen,")"))
+    } else {
+      plot(NULL, main = "Data not available")
+    }
+    list(var_mat = var_mat, var = var)
+  })
+  
+  output$heatmapPlot <- renderPlot({
+    data <- req(heatmap_data())  # Make sure data is available
+    pheatmap(data$var_mat, main = paste("Heatmap for", data$var))
+  })
+  
   output$varHeatmapUI <- renderUI({
     req(analysisDone())
-    resultsFilePath <- paste0(resultFolderPath, "/daily_charact_x.csv")
-    if(file.exists(resultsFilePath)) {
-      data <- read.csv(resultsFilePath)
-      varchoice <- names(data)[sapply(data, is.numeric) & !names(data) %in% c("DOY", "Stage", "id_trial", "Yieldkgha", "Period")]
+    charact_x_path <- paste0(resultFolderPath, "/daily_charact_x.csv")
+    if(file.exists(charact_x_path)) {
+      charact_x <- read.csv(charact_x_path)
+      varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period,DOY, Stage)) %>% names()
       selectInput("heatmapSelect", "Select Variable for Heatmap", choices = varchoice)
     }
   })
   
-  output$heatmapPlot <- renderPlot({
-    req(input$heatmapSelect)  # Ensure there's a selected value
-    updateHeatmap()  # Call a function to update the heatmap
-  })
   
-  updateHeatmap <- function() {
-    resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-    if (file.exists(resultsFilePath)) {
-      data <- read.csv(resultsFilePath)
-      var <- input$heatmapSelect
-      var_mat <- data %>%
-        filter(Genetics == 2) %>%
-        select(Site, starts_with(var)) %>%
-        group_by(Site) %>%
-        summarize(across(starts_with(var), mean, na.rm = TRUE)) %>%
-        column_to_rownames('Site') %>%
-        as.matrix()
-      
-      pheatmap(var_mat, angle_col = 45,
-               color = brewer.pal(11, "RdBu"),
-               fontsize = 10,
-               display_numbers = round(var_mat, 2),
-               number_color = "white",
-               number_format = "%.2f",
-               legend = FALSE,
-               cluster_cols = FALSE,
-               cluster_rows = FALSE,
-               main = paste0("Means of ", var, " by Site"))
-    } else {
-      plot(NULL, main = "Data not available")
-    }
-  }
   
   output$plotDailyBetweenSites <- renderPlot({
     req(bigmet())
@@ -603,9 +630,9 @@ server <- function(input, output, session) {
   # # Adjust this part within your existing server function
   # data_for_esquisse <- reactive({
   #   req(analysisDone())  # Ensure analysis is done
-  #   resultsFilePath <- paste0(resultFolderPath, "/charact_x.csv")
-  #   if(file.exists(resultsFilePath)) {
-  #     read.csv(resultsFilePath)
+  #   charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+  #   if(file.exists(charact_x_path)) {
+  #     read.csv(charact_x_path)
   #   } else {
   #     NULL  # Provide a fallback or error message if the file isn't found
   #   }

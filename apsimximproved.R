@@ -27,9 +27,9 @@ Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 
-codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
+codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
 #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 #$setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 
 crop <- "Soy" #  !!! ask Sam if this can be set via a button 
@@ -72,6 +72,7 @@ unlink("met",recursive = T) ; dir.create("met")
 
 # Setup for parallel processing
 no_cores <- detectCores() - 2  # Reserve 2 cores for the system
+print(paste("The num of core is " , no_cores))
 cl <- makeCluster(no_cores)
 clusterExport(cl, varlist = c("locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
 

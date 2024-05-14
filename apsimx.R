@@ -3,14 +3,9 @@
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
 
-#for location comparison, standardize axes for acc tt and acc tt instead 
-#  of using real values so that you can plot all the years and locations
-
 #build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
-#maturity / flowering validation > yield validation for describing the growing season
 
 #which of the seasonal variables are affecting the performance of the varieties
-#rate stress during the different periods as high med low? and use to describe environments 
 
 # Start, set up trials_df -----
 
@@ -27,10 +22,10 @@ start_time <- Sys.time() # track running time
 
 #codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
 codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
+#codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
 #setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
-setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
-setwd("~/Library/CloudStorage/Box-Box/nust_apsimx_output")
+setwd("C:/Users/cmg3/Box/Gilbert/nust_apsimx_output")
+#setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
 crop <- "Soy" #  !!! ask Sam if this can be set via a button 
 trials_df <- read_csv(paste0(codes_dir,"/nust_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
@@ -251,8 +246,11 @@ daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsu
 # Format Outputs into the Characterization
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
 mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %>%
-  filter(StageName == "ReadyForHarvesting") %>% mutate(MatDate_Sim = date(Date), .keep = "none")
-trials_df <- left_join(trials_df, yields) %>% left_join(mats) 
+  filter(StageName == "Maturing") %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
+#mats <- group_by(daily_output, id_trial) %>% select(Stage, Date, id_trial) %>%
+#  filter(Stage == max(Stage)) %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
+res <- group_by(daily_output, id_trial) %>% filter(!is.na(Result)) %>% select(id_trial, Result)
+trials_df <- left_join(trials_df, yields) %>% left_join(mats) %>% left_join(res) 
 trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
   mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
   relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
@@ -279,9 +277,10 @@ charact_x <- daily_output %>%
   arrange(id_trial)
 
 daily_charact_x <- daily_output
+trials_x <- trials_df
 
 unlink("output",recursive = T) ; dir.create("output")
-write_csv(trials_df, "output/trials_x.csv")
+write_csv(trials_x, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
 write_csv(daily_charact_x, "output/daily_charact_x.csv")
 

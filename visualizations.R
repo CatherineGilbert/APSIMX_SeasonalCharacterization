@@ -5,6 +5,9 @@ library(tidyverse)
 library(esquisse)
 library(lubridate)
 
+#fernando miguez for information on why APSIM soybean model may not be progressing correctly
+
+
 trials_x <- read_csv("output/trials_x.csv")
 charact_x <- read_csv("output/charact_x.csv")
 daily_charact_x <- read_csv("output/daily_charact_x.csv")
@@ -63,6 +66,7 @@ mean_startend <- group_by(startend, Site) %>%
   mutate(final_doy = ifelse(final_doy > 365, final_doy - 365, final_doy))
 #season limited to average start and end of simulations
 filtmet <- bigmet %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
+filtmet <- filter(filtmet, Site %in% c("ames_ia","urbana_il","lubbock_tx","colombia_mo","centerville_sd"))
 
 #accumulation of thermal time / precip for an average season at each site
 #doy of sowing/harvest set on average dates based on trials that were input

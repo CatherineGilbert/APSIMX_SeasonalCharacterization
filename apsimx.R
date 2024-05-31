@@ -16,7 +16,7 @@ library(data.table)
 library(soilDB)
 library(spData)
 library(parallel)  # For parallel computing
-#Sys.setlocale("LC_ALL", "English_United States")
+Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 

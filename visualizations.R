@@ -12,15 +12,17 @@ trials_x <- read_csv("output/trials_x.csv")
 charact_x <- read_csv("output/charact_x.csv")
 daily_charact_x <- read_csv("output/daily_charact_x.csv")
 
-var <- "Rain"
+var <- "ThermalTime"
 gen <- 3
 site_tag <- "ames_ia"
+
+j_dt <- mutate(j_dt, Period = factor(Period, ordered = T, levels = as.character(1:max(Period))))
 
 varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>% names()
 j_dt <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% left_join(charact_x)
 
 for(var in varchoice){
-  var_mat <- j_dt %>% select(id_trial, Site, Period, starts_with(var)) %>%
+  var_mat <- j_dt %>% select(id_trial, Site, Period, starts_with(var)) %>% arrange(Period) %>%
     pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
     group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
     column_to_rownames("Site") %>%
@@ -39,7 +41,6 @@ for(var in varchoice){
       cluster_rows = T,
       main = paste0("Means of ",var," by Site (MG ",gen,")"))
 }
-
 
 #get thermal time and precip for the last ten years of records
 current_year <- as.numeric(substr(Sys.time(),1,4)) - 1
@@ -66,7 +67,6 @@ mean_startend <- group_by(startend, Site) %>%
   mutate(final_doy = ifelse(final_doy > 365, final_doy - 365, final_doy))
 #season limited to average start and end of simulations
 filtmet <- bigmet %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
-filtmet <- filter(filtmet, Site %in% c("ames_ia","urbana_il","lubbock_tx","colombia_mo","centerville_sd"))
 
 #accumulation of thermal time / precip for an average season at each site
 #doy of sowing/harvest set on average dates based on trials that were input
@@ -138,7 +138,7 @@ ggplot(plot_dt) +
   aes(x = acc_precip, y = acc_tt) +
   geom_vline(aes(xintercept = mean(acc_precip)), color = "black", linetype = "dashed") + 
   geom_hline(aes(yintercept = mean(acc_tt)), color = "black", linetype = "dashed") +
-  geom_label(label = btwn_sites$Site, size = 3) +
+  geom_label(label = plot_dt$Site, size = 3) +
   theme_minimal() +
   labs(x = "Acc. Precipitation (mm)",y = "Acc. Thermal Time", 
        title = "10 Year Site Averages for a Typical Growing Season") +
@@ -150,3 +150,11 @@ ggplot(plot_dt) +
 # trial_comp <- select(daily_charact_x, Stage, id_trial, Rain, ThermalTime) %>% filter(Stage != 1) %>% 
 #   group_by(id_trial) %>% summarize(acc_precip = sum(Rain), acc_tt = sum(ThermalTime)) %>% 
 #   left_join(.,select(trials_x, Site, Genetics, id_trial, Year))
+
+j_dt <- mutate(j_dt, Period = factor(Period, ordered = T, levels = as.character(1:max(Period))))
+ggplot(j_dt) +
+  aes(x = Length, y = Result, fill = Period) +
+  geom_boxplot() +
+  scale_fill_hue(direction = 1) +
+  theme_minimal() +
+  facet_wrap(vars(Period), scales = "free_x")

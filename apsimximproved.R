@@ -1,20 +1,11 @@
-#update outputs and visaluzations
-#think about future labs and also company opportunities after i graduate next year
-
 #get feedback from breeders on what they think is valuable and what kind of outputs they value
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
 
-#for location comparison, standardize axes for acc tt and acc tt instead 
-#  of using real values so that you can plot all the years and locations
-
 #build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
-#maturity / flowering validation > yield validation for describing the growing season
 
 #which of the seasonal variables are affecting the performance of the varieties
-#rate stress during the different periods as high med low? and use to describe environments 
-
 
 # Start, set up trials_df -----
 
@@ -22,6 +13,8 @@ library(apsimx)
 library(tidyverse)
 library(daymetr)
 library(data.table)
+library(soilDB)
+library(spData)
 library(parallel)  # For parallel computing
 Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
@@ -29,8 +22,10 @@ start_time <- Sys.time() # track running time
 
 codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
 #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
-#$setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
+#codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
+setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+#setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
+#setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
 crop <- "Soy" #  !!! ask Sam if this can be set via a button 
 trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
@@ -38,7 +33,7 @@ trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() 
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
 trials_df <- trials_df %>% mutate(Planting = as.Date(Planting), Year = format(Planting,"%Y")) %>% 
-  mutate(sim_start = Planting %m-% months(2), sim_end = Planting %m+% months(8))
+  mutate(sim_start = Planting %m-% months(1), sim_end = Planting %m+% months(10))
 
 # Get what maturities of cultivar we'll use
 if (crop == "Soy"){
@@ -72,7 +67,6 @@ unlink("met",recursive = T) ; dir.create("met")
 
 # Setup for parallel processing
 no_cores <- detectCores() - 2  # Reserve 2 cores for the system
-print(paste("The num of core is " , no_cores))
 cl <- makeCluster(no_cores)
 clusterExport(cl, varlist = c("locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
 
@@ -146,13 +140,13 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 
 # Prepare for parallel processing
 
-clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", "paste0", "dir.create", "file.copy", "tryCatch", "print"))
+clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
+                    "paste0", "dir.create", "file.copy", "tryCatch", "print"))
 
 #edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
 
 # Parallel APSIM files creation
 apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
-  Sys.setlocale("LC_ALL", "English_United States")
   trial_tmp <- trials_df[trial_n,]
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
@@ -250,38 +244,74 @@ daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>
 daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>% 
   relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) 
 
-# Periods
-daily_output <- mutate(daily_output, Period = case_when(
-  Stage < 2 & DOY < 180 ~ "0", 
-  Stage == 1 & DOY >= 180 ~ "10", 
-  .default = as.character(floor(Stage) - 1)
-)) %>% mutate(Period = factor(Period, ordered = T, levels = as.character(0:10)))
+# Get simulated maturity dates 
+mats <- group_by(daily_output, id_trial) %>% select(Stage, Date, id_trial) %>%
+  filter(Stage == max(Stage)) %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
+#mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %>%
+#filter(StageName == "Maturing") %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
+
+# Trim season to one month after death / harvest
+sim_trim <- group_by(daily_output, id_trial) %>% select(Stage, Date, id_trial) %>%
+  filter(Stage == max(Stage)) %>% filter(Date == max(Date)) %>% 
+  mutate(sim_end = date(Date) %m+% months(1)) %>% select(id_trial, sim_end)
+daily_output <- daily_output %>% group_by(id_trial) %>% left_join(sim_trim) %>% filter(Date <= sim_end) %>% select(-sim_end)
 
 # Format Outputs into the Characterization
-yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha))
-mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %>%
-  filter(StageName == "ReadyForHarvesting") %>% mutate(MatDate_Sim = date(Date), .keep = "none")
-trials_df <- left_join(trials_df, yields) %>% left_join(mats) 
-trials_df <- rename(trials_df, Latitude = Y, Longitude = X) %>%
+yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha),  MaxStage = max(Stage))
+res <- group_by(daily_output, id_trial) %>% filter(!is.na(Result)) %>% select(id_trial, Result)
+
+trials_x <- left_join(trials_df, yields) %>% left_join(mats) %>% left_join(res) 
+trials_x <- select(trials_x, -sim_end) %>% left_join(sim_trim)
+trials_x <- rename(trials_x, Latitude = Y, Longitude = X) %>%
   mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
   relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
            DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
+
+# Periods
+daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
+  mutate(Period = case_when(
+    Stage == 1 & (as_date(Date) < Planting) ~ 1,
+    Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max(Stage),
+    .default = floor(Stage)
+  )) %>% select(-MatDate_Sim) %>% 
+  mutate(Period = factor(Period, ordered = T, levels = as.character(1:max(Stage))))
+
+# daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
+#   mutate(Stage = case_match(
+#     Period,
+#     "1" ~ "Pre-planting", #germinating
+#     "2" ~ "VE", #emerging
+#     "3" ~ "V(n)", #vegetative
+#     "4" ~ "R1", #early flowering
+#     "5" ~ "R3", #early pod development
+#     "6" ~ "R5 early", #early grain filling
+#     "7" ~ "R5 mid", #mid grain filing
+#     "8" ~ "R5 late", #late grain filling
+#     "9" ~ "R6", #maturing
+#     "10" ~ "R7", #ripening
+#     "11" ~ "R8 & Post-harvest", #harvestripe + germinating
+#   )) %>% select(-MatDate_Sim) %>% 
+#   mutate(Period = factor(Period, ordered = T, levels = as.character(1:11)))
 
 charact_x <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
   mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>%
   summarize(across(where(is.numeric) & !c(DOY,AccPrecip,AccTT), function(x){mean(x,na.omit=T)}), 
             AccPrecip = max(AccPrecip), AccTT = max(AccTT),
-            Start_DOY = min(DOY)) %>%
+            Start_Date = min(Date), End_Date = max(Date)) %>% 
+  mutate(Length = as.numeric(End_Date - Start_Date), Start_DOY = yday(Start_Date), End_DOY = yday(End_Date)) %>%
+  select(-Start_Date, -End_Date) %>% 
   relocate(id_trial, Period, Rain) %>% 
   relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) %>%
-  relocate(Start_DOY, .after = last_col()) %>%
-  arrange(id_trial)
+  relocate(Start_DOY, Length, End_DOY, .after = last_col()) %>%
+  arrange(id_trial) 
+
+daily_charact_x <- daily_output
 
 unlink("output",recursive = T) ; dir.create("output")
-write_csv(trials_df, "output/trials_x.csv")
+write_csv(trials_x, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
-write_csv(daily_output, "output/daily_charact_x.csv")
+write_csv(daily_charact_x, "output/daily_charact_x.csv")
 
 
 #calculate time duration for running the code:

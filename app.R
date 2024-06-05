@@ -9,7 +9,12 @@ library(tidyverse)
 library(daymetr)
 library(data.table)
 library(RColorBrewer)
-
+library(pheatmap)
+library(janitor)
+library(RColorBrewer)
+library(tidyverse)
+library(esquisse)
+library(tidyr)
 
 # Define UI
 ui <- dashboardPage(
@@ -147,21 +152,8 @@ server <- function(input, output, session) {
     #which of the seasonal variables are affecting the performance of the varieties
     #rate stress during the different periods as high med low? and use to describe environments 
     
+    
     # Start, set up trials_df -----
-    
-    
-    #for location comparison, standardize axes for acc tt and acc tt instead 
-    #  of using real values so that you can plot all the years and locations
-    
-    #keeping the periods that move ahead to the following periods, not the ones that are extended indefinitely
-    #note when crops die before reachin full maturity
-    
-    #build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
-    #maturity / flowering validation > yield validation for describing the growing season
-    
-    #which of the seasonal variables are affecting the performance of the varieties
-    #rate stress durin hte different periods as high med low? and use to describe environments 
-    
     
     library(apsimx)
     library(tidyverse)
@@ -175,12 +167,10 @@ server <- function(input, output, session) {
     codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
     #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
     setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
-    #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
-    
-    input_path <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
+    #$setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
     crop <- "Soy" #  !!! ask Sam if this can be set via a button 
-    trials_df <- read_csv(paste0(input_path,"/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+    trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
       rename(X = Longitude, Y = Latitude)
     locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
     trials_df <- left_join(trials_df, locs_df)
@@ -219,6 +209,7 @@ server <- function(input, output, session) {
     
     # Setup for parallel processing
     no_cores <- detectCores() - 2  # Reserve 2 cores for the system
+    print(paste("The num of core is " , no_cores))
     cl <- makeCluster(no_cores)
     clusterExport(cl, varlist = c("locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
     
@@ -424,18 +415,17 @@ server <- function(input, output, session) {
       relocate(Start_DOY, .after = last_col()) %>%
       arrange(id_trial)
     
-    daily_charact_x <- daily_output
-    
     unlink("output",recursive = T) ; dir.create("output")
     write_csv(trials_df, "output/trials_x.csv")
     write_csv(charact_x, "output/charact_x.csv")
-    write_csv(daily_charact_x, "output/daily_charact_x.csv")
+    write_csv(daily_output, "output/daily_charact_x.csv")
     
     
     #calculate time duration for running the code:
     end_time <- Sys.time()
     duration <- end_time - start_time
     print(duration)
+    
     setwd(resultFolderPath)
     analysisDone(TRUE)
   })
@@ -547,19 +537,22 @@ server <- function(input, output, session) {
     trials_x_path <-paste0(resultFolderPath,"/trials_x.csv")
     daily_charact_x_path <- paste0(resultFolderPath,"/daily_charact_x.csv")
     
+    
     trials_x <- read_csv(trials_x_path)
     charact_x <- read_csv(charact_x_path)
     daily_charact_x <- read_csv(daily_charact_x_path)
     
+    j_dt <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% left_join(charact_x)
+    
     if (file.exists(charact_x_path)) {
       var <- input$heatmapSelect
-      var_mat <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% 
-        left_join(charact_x) %>% select(id_trial, Site, Period, starts_with(var)) %>%
+      var_mat <- j_dt %>% select(id_trial, Site, Period, starts_with(var)) %>%
         pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
         group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
         column_to_rownames("Site") %>%
         remove_empty(which = "rows") %>%
         as.matrix()
+      
       
       pheatmap(var_mat, angle_col = 45,
                color=brewer.pal(11,"RdBu"),
@@ -588,7 +581,7 @@ server <- function(input, output, session) {
     charact_x_path <- paste0(resultFolderPath, "/daily_charact_x.csv")
     if(file.exists(charact_x_path)) {
       charact_x <- read.csv(charact_x_path)
-      varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period,DOY, Stage)) %>% names()
+      varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>% names()
       selectInput("heatmapSelect", "Select Variable for Heatmap", choices = varchoice)
     }
   })
@@ -666,4 +659,4 @@ server <- function(input, output, session) {
 }
 
 # Run the app
-shinyApp(ui = ui, server = server) 
+shinyApp(ui = ui, server = server)

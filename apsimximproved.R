@@ -23,7 +23,7 @@ start_time <- Sys.time() # track running time
 codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
 #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
 #codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
@@ -142,11 +142,12 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 
 clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
                     "paste0", "dir.create", "file.copy", "tryCatch", "print"))
-
+Sys.setlocale("LC_ALL", "English_United States")
 #edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
 
 # Parallel APSIM files creation
 apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
+  Sys.setlocale("LC_ALL", "English_United States")
   trial_tmp <- trials_df[trial_n,]
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
@@ -200,11 +201,13 @@ for (batch in 1:num_batches) {
   # Run APSIM simulations in parallel for the current batch
   # Run APSIM simulations in parallel
   results <- parLapply(cl, trial_list, function(trial) {
+    Sys.setlocale("LC_ALL", "English_United States")
     trial_n <- trial$id_trial  # Assuming 'id_trial' is the identifier
     source_dir <- paste0("apsim/trial_", trial_n)
     filename <- paste0(crop, "_", trial_n, ".apsimx")
     output <- data.frame()  # Initialize an empty data frame for the results
-    
+    log_file <- paste0(source_dir, "/", crop, "_", trial_n, "_log.txt")
+    sink(log_file, append = TRUE)
     # Wrap APSIM simulation and result handling in tryCatch to handle any errors
     tryCatch({
       output_tmp <- apsimx(filename, src.dir = source_dir)
@@ -213,6 +216,8 @@ for (batch in 1:num_batches) {
       output <- rbind(output, output_tmp)
       # Save individual trial results
       write_csv(output_tmp, file = paste0(source_dir, "/", crop, "_", trial_n, "_out.csv"))
+     cat(sprintf("Successfully written file for trial %d", trial_n))
+     
       return(output)  # Return the output for this trial
     }, error = function(e){
       cat(paste0("Simulation for trial ", trial_n, " failed with error: ", e$message, "\n"))
@@ -268,14 +273,23 @@ trials_x <- rename(trials_x, Latitude = Y, Longitude = X) %>%
            DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
 
 # Periods
-daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
+max_stage <- daily_output %>% 
+  group_by(id_trial) %>% 
+  summarise(max_stage = max(Stage, na.rm = TRUE)) %>% 
+  summarise(max_stage = max(max_stage)) %>% 
+  pull() %>% 
+  round()
+
+# Join and mutate
+daily_output <- daily_output %>% 
+  left_join(select(trials_x, id_trial, MatDate_Sim, Planting), by = "id_trial") %>% 
   mutate(Period = case_when(
     Stage == 1 & (as_date(Date) < Planting) ~ 1,
     Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max(Stage),
     .default = floor(Stage)
-  )) %>% select(-MatDate_Sim) %>% 
-  mutate(Period = factor(Period, ordered = T, levels = as.character(1:max(Stage))))
-
+  )) %>% 
+  select(-MatDate_Sim) %>% 
+  mutate(Period = factor(Period, ordered = TRUE, levels = as.character(1:max_stage)))
 # daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
 #   mutate(Stage = case_match(
 #     Period,

@@ -7,14 +7,14 @@ library(lubridate)
 
 #fernando miguez for information on why APSIM soybean model may not be progressing correctly
 
-
+setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 trials_x <- read_csv("output/trials_x.csv")
 charact_x <- read_csv("output/charact_x.csv")
 daily_charact_x <- read_csv("output/daily_charact_x.csv")
 
 var <- "Rain"
-gen <- 3
-site_tag <- "ames_ia"
+gen <- 1
+site_tag <- "watertown_sd"
 
 varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>% names()
 j_dt <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% left_join(charact_x)

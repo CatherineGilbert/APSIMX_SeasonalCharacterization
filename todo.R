@@ -1,3 +1,5 @@
+# make sure that everything is up to date with the newest version of the code and tools
+# make sure that "download results" button downloads all three files
 # descriptions and info boxes for the tool
   # descriptions of graphs, descriptions of the info in each output (see Seasonal Characterization Slides that were shared)
 # progress bar for process?

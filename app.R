@@ -193,7 +193,6 @@ server <- function(input, output, session) {
     #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
     inputdir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
     
-    crop <- "Soy" #  !!! ask Sam if this can be set via a button 
     trials_df <- read_csv(paste0(inputdir,"/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
       rename(X = Longitude, Y = Latitude)
     locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())

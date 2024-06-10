@@ -126,6 +126,7 @@ ui <- dashboardPage(
 
 # Define server logic
 server <- function(input, output, session) {
+  gen <- 1 # should be selectable for heatmap
   setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
   # Path to the scripts and results
   codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization"
@@ -192,7 +193,7 @@ server <- function(input, output, session) {
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
     inputdir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
-    
+  
     trials_df <- read_csv(paste0(inputdir,"/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
       rename(X = Longitude, Y = Latitude)
     locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
@@ -591,6 +592,7 @@ server <- function(input, output, session) {
   # Reactive expression to filter the meteorological data based on selected sites
   filteredMetData <- reactive({
     req(input$selectedSites)
+    trials_x <- read_csv(paste0(resultFolderPath, "/trials_x.csv"))
     current_year <- as.numeric(substr(Sys.time(), 1, 4)) - 1
     bigmet <- data.frame()
     for(s in 1:max(trials_x$id_loc)){
@@ -609,6 +611,7 @@ server <- function(input, output, session) {
   # Reactive expression to generate the filtered and accumulated data
   accumulatedData <- reactive({
     req(filteredMetData())
+    trials_x <- read_csv(paste0(resultFolderPath, "/trials_x.csv"))
     startend <- select(daily_charact_x, id_trial, DOY, Stage) %>% filter(Stage != 1) %>% 
       group_by(id_trial) %>% filter(Stage == max(Stage) | Stage == min(Stage)) %>%
       summarize(first_doy = DOY[1], final_doy = DOY[2]) %>% 
@@ -667,7 +670,7 @@ server <- function(input, output, session) {
     req(input$selectedSites_faceted)
     selected_sites <- input$selectedSites_faceted
     req(length(selected_sites) > 0)
-    
+    filtmet <- bigmet %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
     plot_data <- wthn_sites %>% filter(Site %in% selected_sites)
     means <- plot_data %>% group_by(Site) %>%
       summarise(mean_acc_precip = mean(acc_precip),
@@ -822,6 +825,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$selectAllSites_between, {
     trials_df <- read_csv(paste0(resultFolderPath, "/trials_x.csv"))
+     trials_x_path <-paste0(resultFolderPath,"/trials_x.csv")
+     trials_x <- read_csv(trials_x_path)
     sites <- sort(unique(trials_df$Site))
     updateCheckboxGroupInput(session, "selectedSites_between", selected = sites)
   })
@@ -850,6 +855,7 @@ server <- function(input, output, session) {
   output$plotBetweenSites <- renderPlot({
     #req(filteredBetweenData())
     selected_sites <- input$selectedSites_between
+
     plot_dtt <- wthn_sites %>% summarize(acc_precip = mean(acc_precip), acc_tt = mean(acc_tt))%>% filter(Site %in% selected_sites)
     plot_data <- filteredBetweenData() %>% filter(Site %in% selected_sites) %>%
       group_by(Site) %>%

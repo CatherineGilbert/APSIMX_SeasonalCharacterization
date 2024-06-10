@@ -4,7 +4,7 @@
 # view results barplot should have the x axis be qualitative- i.e. a bar for each site
 # option to select a folder where to put the results
 # if you hit the "run analysis" button while an analysis is already running, it won't queue another analysis
-# when showing results, round digits to four places
+# when showing results, round digits to two places
 # when creating graphs, generate the data to be turned into graphs ahead of time, and switch which one is shown with the button
   #(don't continually run the same code to generate the graphs from scratch every time they're selected)
 # be able to select genetics in the visualizations

@@ -67,6 +67,7 @@ ui <- dashboardPage(
                 selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
                 fileInput("fileUpload", "Upload Input File", accept = c(".csv")),
                 actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
+                uiOutput("fileSelectUI"),  # Add this line
                 downloadButton("downloadData", "Download Results")
               )
       ),
@@ -135,8 +136,20 @@ server <- function(input, output, session) {
   # Reactive values for storing the analysis state and the selected variable
   #analysisDone <- reactiveVal(FALSE)
   analysisDone <- reactiveVal(TRUE)
-  selectedVariable <- reactiveVal()
+  analysisInProgress <- reactiveVal(FALSE)
   
+  observe({
+    if (analysisInProgress()) {
+      shinyjs::disable("runAnalysis")
+    } else {
+      shinyjs::enable("runAnalysis")
+    }
+  })
+  
+  
+  
+  selectedVariable <- reactiveVal()
+  trials_df <- reactiveVal()
   observeEvent(input$fileUpload, {
     if (!dir.exists(resultFolderPath)) {
       dir.create(resultFolderPath, recursive = TRUE)
@@ -159,6 +172,7 @@ server <- function(input, output, session) {
   observeEvent(input$runAnalysis, {
     
     req(input$fileUpload)
+    analysisInProgress(TRUE)
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     
     #update outputs and visaluzations
@@ -234,7 +248,7 @@ server <- function(input, output, session) {
     # Setup for parallel processing
     no_cores <- detectCores() - 2  # Reserve 2 cores for the system
     cl <- makeCluster(no_cores)
-    clusterExport(cl, varlist = c("locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
+    clusterExport(cl, varlist = c("trials_df","locyear_df","get_daymet2_apsim_met", "napad_apsim_met", "impute_apsim_met", "write_apsim_met"), envir = environment())
     
     
     # Ensure the directory exists for weather data
@@ -298,13 +312,8 @@ server <- function(input, output, session) {
     write_rds(soil_profile_list, "soils/soil_profile_list.rds")
     
     
-    # Create APSIM files -----
-    unlink("apsim", recursive = TRUE)
-    dir.create("apsim")
-    file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"), 
-              to = paste0(crop, "_.apsimx"), overwrite = TRUE)
+ 
     
-    # Prepare for parallel processing
     
     clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
                         "paste0", "dir.create", "file.copy", "tryCatch", "print"))
@@ -500,6 +509,7 @@ server <- function(input, output, session) {
     print(duration)
     
     analysisDone(TRUE)
+    analysisInProgress(FALSE)
     updateSiteSelectionUI()
     updateSiteSelectionFacetdUI()
     updateSiteSelectionBetweenUI()
@@ -694,8 +704,12 @@ server <- function(input, output, session) {
     updateSiteSelectionUI()
     updateSiteSelectionBetweenUI()
     charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-    if(file.exists(charact_x_path)) {
-      datatable(read.csv(charact_x_path), extensions = 'Buttons', options = list(
+    if (file.exists(charact_x_path)) {
+      data <- read.csv(charact_x_path)
+      # Round all numeric columns to 2 decimal places
+      data <- data %>% mutate(across(where(is.numeric), round, 2))
+      
+      datatable(data, extensions = 'Buttons', options = list(
         dom = 'Bfrtip',
         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
       ), escape = FALSE)
@@ -703,7 +717,6 @@ server <- function(input, output, session) {
       return()
     }
   }, options = list(scrollX = TRUE))
-  
   output$varSelectUI <- renderUI({
     req(analysisDone())
     charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
@@ -730,14 +743,24 @@ server <- function(input, output, session) {
   })
   
   output$downloadData <- downloadHandler(
-    filename = function() { "results.csv" },
+    filename = function() {
+      paste0(input$fileSelect, ".csv")
+    },
     content = function(file) {
-      charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-      if(file.exists(charact_x_path)) {
-        file.copy(charact_x_path, file)
+      selected_file_path <- file.path(resultFolderPath, input$fileSelect)
+      if (file.exists(selected_file_path)) {
+        file.copy(selected_file_path, file)
       }
     }
   )
+  
+  output$fileSelectUI <- renderUI({
+    req(analysisDone())
+    files <- list.files(resultFolderPath, pattern = "\\.csv$", full.names = FALSE)
+    selectInput("fileSelect", "Select File to Download", choices = files)
+  })
+  
+  
   output$heatmapPlotUI <- renderUI({
     updateSiteSelectionFacetdUI()
     req(input$heatmapSelect)  # Ensure there's a selected value

@@ -1,5 +1,6 @@
 library(shiny)
 library(shinydashboard)
+library(shinyBS)
 library(DT)
 library(readr)
 library(dplyr)
@@ -11,16 +12,17 @@ library(data.table)
 library(RColorBrewer)
 library(pheatmap)
 library(janitor)
-library(RColorBrewer)
 library(tidyverse)
 library(esquisse)
 library(tidyr)
+
 
 # Define UI
 ui <- dashboardPage(
   dashboardHeader(title = "Trial Characterization Results"),
   dashboardSidebar(
     sidebarMenu(
+      menuItem("Description", tabName = "description", icon = icon("info")),
       menuItem("Upload and Analyze", tabName = "analysis", icon = icon("upload")),
       menuItem("View Results", tabName = "results", icon = icon("image")),
       menuItem("View Heatmap", tabName = "heatmap", icon = icon("fire")),
@@ -62,6 +64,19 @@ ui <- dashboardPage(
     "))
     ),
     tabItems(
+      tabItem(tabName = "description",
+              fluidPage(
+                h2("Seasonal Characterization Tool"),
+                p("Built in R and Shiny using the apsimr package."),
+                p("Purpose: To characterize the growing season at one or more sites according to the crop’s response to environmental conditions at those sites."),
+                h3("Seasonal Characterization Tool Can be used to:"),
+                tags$ul(
+                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop’s development."),
+                  tags$li("Compare seasonal conditions between sites and how those conditions have changed over time."),
+                  tags$li("Predict crop phenology and performance from a cultivar’s maturity, planting date, and location.")
+                )
+              )
+      ),
       tabItem(tabName = "analysis",
               fluidPage(
                 selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
@@ -124,7 +139,6 @@ ui <- dashboardPage(
     )
   )
 )
-
 # Define server logic
 server <- function(input, output, session) {
   gen <- 1 # should be selectable for heatmap
@@ -173,6 +187,10 @@ server <- function(input, output, session) {
     
     req(input$fileUpload)
     analysisInProgress(TRUE)
+    
+    withProgress(message = 'Running Analysis', value = 0, {
+    
+    
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     
     #update outputs and visaluzations
@@ -269,6 +287,7 @@ server <- function(input, output, session) {
       })
     })
     
+    incProgress(0.1, detail = "Getting weather data")
     
     # Get soil, make soil file -----
     soil_profile_list = list()
@@ -312,7 +331,7 @@ server <- function(input, output, session) {
     write_rds(soil_profile_list, "soils/soil_profile_list.rds")
     
     
- 
+    incProgress(0.3, detail = "Getting soil data")
     
     
     clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
@@ -349,7 +368,7 @@ server <- function(input, output, session) {
     })
     
     # Run APSIM files -----
-    
+    incProgress(0.2, detail = "Creating APSIMX files")
     # Define the number of batches
     num_batches <- 10  # You can change this to run different percentages at a time
     
@@ -408,7 +427,7 @@ server <- function(input, output, session) {
       cat(sprintf("Completed batch %d out of %d (%.2f%%)\n", batch, num_batches, 100 * batch / num_batches))
     }
     
-    
+    incProgress(0.4, detail = "Running APSIMX simulations")
     # Stop the cluster
     stopCluster(cl)
     
@@ -417,7 +436,9 @@ server <- function(input, output, session) {
     
     # Merge Outputs
     outfiles <- list.files("apsim/", pattern = "_out", recursive = T)
-    daily_output <- data.table::rbindlist(lapply(outfiles, function(x){read_csv(paste0("apsim/",x),show_col_types = FALSE)}))
+    daily_output <- data.table::rbindlist(lapply(outfiles, function(x) {
+      read_csv(paste0("apsim/", x), show_col_types = FALSE)
+    }), fill = TRUE)
     daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>% arrange(id_trial)
     
     # Add cumulative precipitation and thermal time
@@ -507,6 +528,8 @@ server <- function(input, output, session) {
     end_time <- Sys.time()
     duration <- end_time - start_time
     print(duration)
+    
+    })
     
     analysisDone(TRUE)
     analysisInProgress(FALSE)
@@ -733,14 +756,29 @@ server <- function(input, output, session) {
   output$boxplot <- renderPlot({
     req(analysisDone(), selectedVariable())
     charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    
     if(file.exists(charact_x_path)) {
       data <- read.csv(charact_x_path)
-      ggplot(data, aes_string(x = names(data)[1], y = selectedVariable())) +
-        geom_boxplot() +
-        labs(x = "Site", y = selectedVariable()) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      data$Site <- as.factor(data$Site)  # Ensure Site is treated as a factor
+      
+      selected_var <- selectedVariable()
+      print(paste("Selected variable:", selected_var))
+      print(names(data))  # Print column names to check if the selected variable exists
+      
+      # Check if the selected variable is in the data frame
+      if(selected_var %in% names(data)) {
+        ggplot(data, aes(x = Site, y = get(selected_var))) +
+          geom_boxplot() +
+          labs(x = "Site", y = selected_var) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      } else {
+        print(paste("Error: Variable", selected_var, "not found in data frame"))
+      }
+    } else {
+      print(paste("Error: File", charact_x_path, "does not exist"))
     }
   })
+  
   
   output$downloadData <- downloadHandler(
     filename = function() {

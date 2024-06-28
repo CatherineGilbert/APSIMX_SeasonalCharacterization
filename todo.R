@@ -5,9 +5,11 @@ Todo:
 # make it so the download result button is not accessible until downloaded results are available
 # error handling with input < 10
 # get boxplots working again, make sure the x axis has each location
-# on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are
+# on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are 
+   #(this can be found in the Seasonal Characterization Tool powerpoint, or I can write it if you just leave a placeholder so I know where to put the text).
 # make sure the downloads aren't named .csv.csv at the end. 
 # get the visualizations running on the main branch
+# in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
 
 # internally:
 # make N/A sowing dates a viable choice

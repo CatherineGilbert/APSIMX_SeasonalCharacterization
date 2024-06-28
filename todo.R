@@ -4,6 +4,7 @@ Todo:
 # reinstate progress bar for analysis
 # make it so the download result button is not accessible until downloaded results are available
 # error handling with input < 10
+# get boxplots working again, make sure the x axis has each location
 
 
 # internally:

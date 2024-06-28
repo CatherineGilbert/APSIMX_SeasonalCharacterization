@@ -3,6 +3,8 @@ Todo:
 # for heatmaps, remove top dendrogram (columns should be in order by number), add text for the value on each tile, figure out where the NAs are coming from and get rid of it.
 # reinstate progress bar for analysis
 # make it so the download result button is not accessible until downloaded results are available
+# error handling with input < 10
+
 
 # internally:
 # make N/A sowing dates a viable choice

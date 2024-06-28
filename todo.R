@@ -13,6 +13,7 @@ Todo:
 
 # internally:
 # make N/A sowing dates a viable choice
+# make sure the after-harvest period isn't being returned as NA
 
 
 Major Issues:

@@ -7,6 +7,7 @@ Todo:
 # get boxplots working again, make sure the x axis has each location
 # on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are
 # make sure the downloads aren't named .csv.csv at the end. 
+# get the visualizations running on the main branch
 
 # internally:
 # make N/A sowing dates a viable choice

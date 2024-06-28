@@ -1,9 +1,8 @@
 Todo:
 # descriptions of graphs, descriptions of the info in each output (see Seasonal Characterization Slides that were shared)
 # view results barplot should have the x axis be qualitative- i.e. a bar for each site
-# when creating graphs, generate the data to be turned into graphs ahead of time, and switch which one is shown with the button
-  (don't continually run the same code to generate the graphs from scratch every time they're selected)
-# be able to select genetics in the visualizations
+# for heatmaps, remove top dendrogram (columns should be in order by number), add text for the value on each tile, figure out where the NAs are coming from and get rid of it.
+# reinstate progress bar for analysis
 
 # internally:
 # make N/A sowing dates a viable choice
@@ -20,10 +19,12 @@ Major Issues:
 
 Fixed Bugs:
 
+
+# be able to select genetics in the visualizations
+
 2024/6/21:
 # descriptions and info boxes for the tool
 # progress bar for process
-
 
 2024/6/14:
 1. make sure that "download results" button downloads all three files

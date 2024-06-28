@@ -27,8 +27,8 @@ setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_outp
 #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
-crop <- "Soy" #  !!! ask Sam if this can be set via a button 
-trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+crop <- readLines(paste0(codes_dir, "/selected_crop.txt"))
+trials_df <- read_csv(paste0(codes_dir,"/apsimx_output/output/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)

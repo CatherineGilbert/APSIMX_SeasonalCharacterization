@@ -68,12 +68,12 @@ ui <- dashboardPage(
               fluidPage(
                 h2("Seasonal Characterization Tool"),
                 p("Built in R and Shiny using the apsimr package."),
-                p("Purpose: To characterize the growing season at one or more sites according to the crop’s response to environmental conditions at those sites."),
+                p("Purpose: To characterize the growing season at one or more sites according to the crop's response to environmental conditions at those sites."),
                 h3("Seasonal Characterization Tool Can be used to:"),
                 tags$ul(
-                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop’s development."),
+                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop's development."),
                   tags$li("Compare seasonal conditions between sites and how those conditions have changed over time."),
-                  tags$li("Predict crop phenology and performance from a cultivar’s maturity, planting date, and location.")
+                  tags$li("Predict crop phenology and performance from a cultivar's maturity, planting date, and location.")
                 )
               )
       ),
@@ -96,11 +96,15 @@ ui <- dashboardPage(
       ),
       tabItem(tabName = "heatmap",
               fluidPage(
+                p("This heatmap visualizes the means of the selected variable by site and genetic group. 
+            Use the dropdown menus to select the variable and genetic group for analysis."),
                 uiOutput("varHeatmapUI"),
+                uiOutput("genSelectUI"),
                 uiOutput("heatmapPlotUI")  # Use uiOutput to render the heatmap plot
               )
       ),
       tabItem(tabName = "daily_between_sites",
+              fluidPage(p("This section allows you to compare daily accumulated precipitation and thermal time between different sites. Select the comparison type and sites for analysis."),
               fluidRow(
                 column(width = 9,  # Adjust the width as needed
                        selectInput("comparisonType", "Select Comparison Type", choices = c(
@@ -115,8 +119,11 @@ ui <- dashboardPage(
                        uiOutput("siteSelectionUI")
                 )
               )
+              )
       ),
       tabItem(tabName = "between_sites",
+              fluidPage(
+                p("This section visualizes the 10-year site averages for a typical growing season, comparing accumulated precipitation and thermal time between selected sites."),
               fluidRow(
                 column(width = 3,
                        uiOutput("siteSelectionUI_between")
@@ -125,8 +132,11 @@ ui <- dashboardPage(
                        plotOutput("plotBetweenSites")
                 )
               )
+              )
       ),
       tabItem(tabName = "faceted_comparison",
+              fluidPage(
+                p("This section provides a faceted comparison of accumulated precipitation and thermal time for different sites. Select the sites to visualize the comparison."),
               fluidRow(
                 column(width = 3,
                        uiOutput("siteSelectionUI_faceted")
@@ -135,6 +145,7 @@ ui <- dashboardPage(
                        plotOutput("facetedComparisonPlot")
                 )
               )
+      )
       )
     )
   )
@@ -193,15 +204,9 @@ server <- function(input, output, session) {
     setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
-    crop <- input$cropType 
-    # write to log file about crop selection result
+    crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
-    
-    #use the source file code helper to run it!!! change to local address
-
-
-    
-    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimxhelper.R")
+    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved.R")
     #update outputs and visaluzations
     #think about future labs and also company opportunities after i graduate next year
     
@@ -323,14 +328,19 @@ server <- function(input, output, session) {
     current_year <- as.numeric(substr(Sys.time(), 1, 4)) - 1
     bigmet <- data.frame()
     for(s in 1:max(trials_x$id_loc)){
-      lil_met <- read_apsim_met(paste0(codes_dir,"met/loc_",s,".met"), verbose = F) %>% as_tibble() %>%
-        filter(year >= current_year - 9, year <= current_year) %>% mutate(id_loc = s)
+      lil_met <- read_apsim_met(paste0("met/loc_", s, ".met"), verbose = F) %>% 
+        as_tibble() %>%
+        filter(year >= current_year - 9, year <= current_year) %>% 
+        mutate(id_loc = s)
       bigmet <- rbind(bigmet, lil_met)
     }
-    bigmet <- trials_x %>% select(Site, id_loc) %>% distinct() %>% left_join(bigmet) %>% group_by(Site, id_loc, year, day)
-    max_temp = 34
-    base_temp = 0
-    bigmet <- mutate(bigmet, tt = max((min(maxt, max_temp) + max(mint, base_temp)) / 2 - base_temp, 0)) %>% ungroup()
+    bigmet <- trials_x %>% 
+      select(Site, id_loc) %>% 
+      distinct() %>% 
+      left_join(bigmet) %>% 
+      group_by(Site, id_loc, year, day) %>%
+      mutate(tt = max((min(maxt, 34) + max(mint, 0)) / 2 - 0, 0)) %>%
+      ungroup()
     bigmet <- filter(bigmet, Site %in% input$selectedSites)
     bigmet
   })
@@ -397,7 +407,7 @@ server <- function(input, output, session) {
     req(input$selectedSites_faceted)
     selected_sites <- input$selectedSites_faceted
     req(length(selected_sites) > 0)
-    filtmet <- bigmet %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
+    filtmet <- bigmet() %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
     plot_data <- wthn_sites %>% filter(Site %in% selected_sites)
     means <- plot_data %>% group_by(Site) %>%
       summarise(mean_acc_precip = mean(acc_precip),
@@ -425,44 +435,67 @@ server <- function(input, output, session) {
       data <- read.csv(charact_x_path)
       # Round all numeric columns to 2 decimal places
       data <- data %>% mutate(across(where(is.numeric), round, 2))
-      
+      # Debugging print statements
+      print(dim(data))  # Print the dimensions of the data
       datatable(data, extensions = 'Buttons', options = list(
         dom = 'Bfrtip',
-        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollX = TRUE
       ), escape = FALSE)
     } else {
-      return()
-    }
-  }, options = list(scrollX = TRUE))
-  output$varSelectUI <- renderUI({
-    req(analysisDone())
-    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-    if(file.exists(charact_x_path)) {
-      data <- read.csv(charact_x_path)
-      selectInput("varSelect", "Select Variable", choices = names(data)[-1])
+      print("awdawdawdawd")
+      return(NULL)
     }
   })
   
-  observeEvent(input$varSelect, {
-    selectedVariable(input$varSelect)
+  output$varSelectUI <- renderUI({
+    req(analysisDone())
+    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    if (file.exists(charact_x_path)) {
+      data <- read.csv(charact_x_path)
+      selectInput("varSelect_boxplot", "Select Variable", choices = names(data)[-1])
+    }
+  })
+  
+  observeEvent(input$varSelect_boxplot, {
+    selectedVariable(input$varSelect_boxplot)
   }, ignoreInit = TRUE)
   
   output$boxplot <- renderPlot({
     req(analysisDone(), selectedVariable())
     charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
     
-    if(file.exists(charact_x_path)) {
+    if (file.exists(charact_x_path)) {
       data <- read.csv(charact_x_path)
       data$Site <- as.factor(data$Site)  # Ensure Site is treated as a factor
       
       selected_var <- selectedVariable()
-      print(paste("Selected variable:", selected_var))
-      print(names(data))  # Print column names to check if the selected variable exists
       
-      # Check if the selected variable is in the data frame
+      # Debugging print statements
+      print("Selected variable is:")
+      print(selected_var)
+      print("Column names of data are:")
+      print(names(data))
+      print("Dimensions of data are:")
+      print(dim(data))
+      
+      # Check if selected_var is in the column names of data
       if(selected_var %in% names(data)) {
-        ggplot(data, aes(x = Site, y = get(selected_var))) +
-          geom_boxplot() +
+        print("Summary of selected variable:")
+        print(summary(data[[selected_var]]))
+        
+        # Additional debugging to see if any NA values or other issues
+        print("Checking for NA values in selected variable:")
+        print(sum(is.na(data[[selected_var]])))
+        
+        # Ensure that we have non-zero length for the selected variable column
+        if (length(data[[selected_var]]) != nrow(data)) {
+          print(paste("Error: Length of selected variable column", length(data[[selected_var]]), "does not match number of rows", nrow(data)))
+        }
+        
+        # Create the bar plot
+        ggplot(data, aes(x = Site, y = .data[[selected_var]], fill = Site)) +
+          geom_bar(stat = "identity") +
           labs(x = "Site", y = selected_var) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
       } else {
@@ -493,6 +526,17 @@ server <- function(input, output, session) {
   })
   
   
+  output$genSelectUI <- renderUI({
+    req(analysisDone())
+    input_path <- paste0(resultFolderPath, "/input.csv")
+    if(file.exists(input_path)) {
+      input<- read.csv(input_path)
+      gen_choices <- unique(input$Genetics)
+      selectInput("genSelect", "Select Gen for Heatmap", choices = gen_choices, selected = gen_choices[1])
+    }
+  })
+  
+  
   output$heatmapPlotUI <- renderUI({
     updateSiteSelectionFacetdUI()
     req(input$heatmapSelect)  # Ensure there's a selected value
@@ -506,7 +550,7 @@ server <- function(input, output, session) {
   heatmap_data <- reactive({
     req(input$heatmapSelect)  # Ensure a variable is selected
     req(analysisDone())
-    print(getwd())
+    gen <- input$genSelect 
     var <- input$heatmapSelect
     # Logic to prepare the heatmap matrix
     charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")

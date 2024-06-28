@@ -14,6 +14,8 @@ Major Issues:
 1. trials_df not found: process with shiny app and parallel programming, not updated environment after each step. 
 2. display of facted comparision and between sites, similar issues with environmental variables. 
 3. small_charact_dt has 141 lines but only 97 apsimx trials. Why? 
+ > likely because of an issue with ISRIC, the soil database for soils outside the US. it returns errors, so the APSIM
+   files can't be generated, and the trials can't be run. 
 
 
 

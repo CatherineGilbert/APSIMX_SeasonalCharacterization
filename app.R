@@ -154,14 +154,14 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
 
   gen <- 1 # should be selectable for heatmap
-  setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+  setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
   # Path to the scripts and results
-  codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization"
-  resultFolderPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
+  codesPath <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
+  resultFolderPath <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
 
   # Reactive values for storing the analysis state and the selected variable
-  #analysisDone <- reactiveVal(FALSE)
-  analysisDone <- reactiveVal(TRUE)
+  analysisDone <- reactiveVal(FALSE)
+  #analysisDone <- reactiveVal(TRUE)
   analysisInProgress <- reactiveVal(FALSE)
   
   observe({
@@ -201,12 +201,12 @@ server <- function(input, output, session) {
     analysisInProgress(TRUE)
     
     
-    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+    setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
-    crop <- input$cropType #  !!! ask Sam if this can be set via a button 
+    crop <- input$cropType #  !!! ask cmg3 if this can be set via a button 
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
-    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved.R")
+    source("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_helper.R")
     #update outputs and visaluzations
     #think about future labs and also company opportunities after i graduate next year
     

@@ -20,10 +20,10 @@ Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 
-codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
+codes_dir <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
 #codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
 #codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
@@ -207,7 +207,7 @@ for (batch in 1:num_batches) {
     filename <- paste0(crop, "_", trial_n, ".apsimx")
     output <- data.frame()  # Initialize an empty data frame for the results
     log_file <- paste0(source_dir, "/", crop, "_", trial_n, "_log.txt")
-    sink(log_file, append = TRUE)
+    #sink(log_file, append = TRUE)
     # Wrap APSIM simulation and result handling in tryCatch to handle any errors
     tryCatch({
       output_tmp <- apsimx(filename, src.dir = source_dir)
@@ -270,22 +270,21 @@ trials_x <- select(trials_x, -sim_end) %>% left_join(sim_trim)
 trials_x <- rename(trials_x, Latitude = Y, Longitude = X) %>%
   mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
   relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
-           DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
+           DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim, MaxStage)
 
 # Periods
-max_stage <- daily_output %>% 
-  group_by(id_trial) %>% 
-  summarise(max_stage = max(Stage, na.rm = TRUE)) %>% 
-  summarise(max_stage = max(max_stage)) %>% 
-  pull() %>% 
-  round()
+if (crop %in% c("Soy","Maize")) {
+  max_stage <- 11
+} else {
+  max_stage <- max(daily_output$Stage)
+}
 
 # Join and mutate
 daily_output <- daily_output %>% 
   left_join(select(trials_x, id_trial, MatDate_Sim, Planting), by = "id_trial") %>% 
   mutate(Period = case_when(
-    Stage == 1 & (as_date(Date) < Planting) ~ 1,
-    Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max(Stage),
+    Stage == 1 & (as_date(Date) <= Planting) ~ 1,
+    Stage == 1 & (as_date(Date) > Planting) ~ max_stage,
     .default = floor(Stage)
   )) %>% 
   select(-MatDate_Sim) %>% 

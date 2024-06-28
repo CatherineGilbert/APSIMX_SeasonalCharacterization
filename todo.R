@@ -5,6 +5,7 @@ Todo:
 # make it so the download result button is not accessible until downloaded results are available
 # error handling with input < 10
 # get boxplots working again, make sure the x axis has each location
+# on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are
 
 
 # internally:

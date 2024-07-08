@@ -12,6 +12,7 @@ Todo:
 # set up example soy and maize datasets for the final tool. verify.csv can become "soy_example.csv",
 and I can grab a maize example from Iris
 # download all files as .zip
+# are maturities selectable?
 
 # internally:
 # make N/A sowing dates a viable choice

@@ -2,7 +2,6 @@
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
-
 #build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
 
 #which of the seasonal variables are affecting the performance of the varieties
@@ -27,7 +26,16 @@ codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
 setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
 
-crop <- "Soy" #  !!! ask Sam if this can be set via a button 
+crop <- "Soy" 
+
+
+GermWait <- as.character(as.integer(30))
+EmergWait <- as.character(as.integer(30))
+LethalFrost <- as.character(as.numeric(-2.5))
+MaxStall <- as.character(as.integer(14))
+
+
+
 trials_df <- read_csv(paste0(codes_dir,"/verify.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
@@ -165,6 +173,21 @@ apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
               value = as.character(format(trial_tmp$Planting, "%d-%b")), verbose = F)
   edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
               node = "Crop", parm = "CultivarName", value = trial_tmp$Mat, verbose = F)
+  
+  #Death Rules
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Manager", manager.child = "ReaperMan",
+              parm = "GermWait", value = GermWait, verbose = F)
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Manager", manager.child = "ReaperMan",
+              parm = "EmergWait", value = EmergWait, verbose = F)
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Manager", manager.child = "ReaperMan",
+              parm = "LethalFrost", value = LethalFrost, verbose = F)
+  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+              node = "Manager", manager.child = "ReaperMan",
+              parm = "MaxStall", value = MaxStall, verbose = F)
+  
   tryCatch({
     edit_apsimx_replace_soil_profile(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
                                      soil.profile = soil_profile_list[[as.character(trial_tmp$id_loc)]], verbose = F)

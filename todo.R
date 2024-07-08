@@ -9,6 +9,8 @@ Todo:
 # make sure the downloads aren't named .csv.csv at the end. 
 # get the visualizations running on the main branch
 # in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
+# set up example soy and maize datasets for the final tool. verify.csv can become "soy_example.csv",
+and I can grab a maize example from Iris
 
 # internally:
 # make N/A sowing dates a viable choice

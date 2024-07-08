@@ -11,6 +11,7 @@ Todo:
 # in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
 # set up example soy and maize datasets for the final tool. verify.csv can become "soy_example.csv",
 and I can grab a maize example from Iris
+# download all files as .zip
 
 # internally:
 # make N/A sowing dates a viable choice

@@ -1,17 +1,13 @@
 Todo:
 # for heatmaps, remove top dendrogram (columns should be in order by number), add text for the value on each tile, figure out where the NAs are coming from and get rid of it.
 # reinstate progress bar for analysis
-# make it so the download result button is not accessible until downloaded results are available
-# error handling with input < 10
 # get boxplots working again, make sure the x axis has each location
-# on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are 
-   #(this can be found in the Seasonal Characterization Tool powerpoint, or I can write it if you just leave a placeholder so I know where to put the text).
 # get the visualizations running on the main branch
 # in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
 # set up example soy and maize datasets for the final tool. verify.csv can become "soy_example.csv",
 and I can grab a maize example from Iris
 # move the input file out of the outputs folder.
-# are maturities selectable? -not for now
+
 
 # internally:
 # make N/A sowing dates a viable choice
@@ -25,6 +21,12 @@ Major Issues:
  > likely because of an issue with ISRIC, the soil database for soils outside the US. it returns errors, so the APSIM
    files can't be generated, and the trials can't be run. 
 
+2024/7/12:
+# on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are 
+   #(this can be found in the Seasonal Characterization Tool powerpoint, or I can write it if you just leave a placeholder so I know where to put the text).
+# error handling with input < 10
+# make it so the download result button is not accessible until downloaded results are available
+# are maturities selectable? -yes, you can select gene group
 
 2024/7/10:
 # download all files as .zip

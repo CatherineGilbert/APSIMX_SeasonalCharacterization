@@ -1,6 +1,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinyBS)
+library(shinyjs)
 library(DT)
 library(readr)
 library(dplyr)
@@ -15,6 +16,7 @@ library(janitor)
 library(tidyverse)
 library(esquisse)
 library(tidyr)
+library(zip)
 
 
 # Define UI
@@ -27,11 +29,12 @@ ui <- dashboardPage(
       menuItem("View Results", tabName = "results", icon = icon("image")),
       menuItem("View Heatmap", tabName = "heatmap", icon = icon("fire")),
       menuItem("Daily Between Sites", tabName = "daily_between_sites", icon = icon("chart-line")),
-      menuItem("Faceted Comparison", tabName = "faceted_comparison", icon = icon("chart-area")),
+      menuItem("10 year plot at one Site", tabName = "faceted_comparison", icon = icon("chart-area")),
       menuItem("Between Sites", tabName = "between_sites", icon = icon("chart-bar"))
     )
   ),
   dashboardBody(
+    shinyjs::useShinyjs(),
     tags$head(
       tags$style(HTML("
       .content-wrapper {
@@ -43,6 +46,10 @@ ui <- dashboardPage(
       .box-body {
         overflow-x: auto;
       }
+       .large-text-label .control-label {
+      font-size: 24px; /* Adjust the size as needed */
+      font-weight: bold;
+    } 
     ")),
       tags$script(HTML("
       $(document).on('shiny:sessioninitialized', function(event) {
@@ -68,12 +75,12 @@ ui <- dashboardPage(
               fluidPage(
                 h2("Seasonal Characterization Tool"),
                 p("Built in R and Shiny using the apsimr package."),
-                p("Purpose: To characterize the growing season at one or more sites according to the crop's response to environmental conditions at those sites."),
+                p("Purpose: To characterize the growing season at one or more sites according to the crop’s response to environmental conditions at those sites."),
                 h3("Seasonal Characterization Tool Can be used to:"),
                 tags$ul(
-                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop's development."),
+                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop’s development."),
                   tags$li("Compare seasonal conditions between sites and how those conditions have changed over time."),
-                  tags$li("Predict crop phenology and performance from a cultivar's maturity, planting date, and location.")
+                  tags$li("Predict crop phenology and performance from a cultivar’s maturity, planting date, and location.")
                 )
               )
       ),
@@ -82,8 +89,13 @@ ui <- dashboardPage(
                 selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
                 fileInput("fileUpload", "Upload Input File", accept = c(".csv")),
                 actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
-                uiOutput("fileSelectUI"),  # Add this line
-                downloadButton("downloadData", "Download Results")
+               # uiOutput("fileSelectUI"),  // if we want to select file we add it back
+                downloadButton("downloadData", "Download Results"),
+                br(),
+                h3("Dataset Descriptions"),
+                p(strong("charact_x:"), " [Placeholder for charact_x description]"),
+                p(strong("trials_x:"), " [Placeholder for trials_x description]"),
+                p(strong("daily_charact_x:"), " [Placeholder for daily_charact_x description]")
               )
       ),
       tabItem(tabName = "results",
@@ -91,6 +103,10 @@ ui <- dashboardPage(
                 uiOutput("varSelectUI"),
                 actionButton("plotButton", "Generate Boxplot"),
                 plotOutput("boxplot"),
+                div(
+                  class = "large-text-label",
+                  selectInput("fileToView", "Select File to View", choices = c("charact_x.csv", "daily_charact_x.csv", "trials_x.csv"))
+                ),
                 DTOutput("viewData")
               )
       ),
@@ -154,10 +170,10 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
 
   gen <- 1 # should be selectable for heatmap
-  setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+  setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
   # Path to the scripts and results
-  codesPath <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-  resultFolderPath <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
+  codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization"
+  resultFolderPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
 
   # Reactive values for storing the analysis state and the selected variable
   analysisDone <- reactiveVal(FALSE)
@@ -201,12 +217,12 @@ server <- function(input, output, session) {
     analysisInProgress(TRUE)
     
     
-    setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
-    crop <- input$cropType #  !!! ask cmg3 if this can be set via a button 
+    crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
-    source("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_helper.R")
+    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved.R")
     #update outputs and visaluzations
     #think about future labs and also company opportunities after i graduate next year
     
@@ -404,21 +420,21 @@ server <- function(input, output, session) {
   })
   
   output$facetedComparisonPlot <- renderPlot({
+
     req(input$selectedSites_faceted)
     selected_sites <- input$selectedSites_faceted
-    req(length(selected_sites) > 0)
-    filtmet <- bigmet() %>% left_join(mean_startend) %>% filter(day >= first_doy & day <= final_doy)
-    plot_data <- wthn_sites %>% filter(Site %in% selected_sites)
-    means <- plot_data %>% group_by(Site) %>%
-      summarise(mean_acc_precip = mean(acc_precip),
-                mean_acc_tt = mean(acc_tt))
-    
-    ggplot(plot_data) +
-      aes(x = acc_precip, y = acc_tt) +
+    print(selected_sites)
+
+    plot_dt <- wthn_sites %>% filter(Site %in% selected_sites)
+    means <- plot_dt %>% group_by(Site) %>%
+      summarise(mean_acc_precip = mean(acc_precip, na.rm = TRUE),
+                mean_acc_tt = mean(acc_tt, na.rm = TRUE))
+  
+    ggplot(plot_dt, aes(x = acc_precip, y = acc_tt)) +
       facet_wrap(vars(Site), scales = "free") +
-      geom_vline(data = means, aes(xintercept = mean_acc_precip), color = "black", linetype = "dashed") + 
+      geom_vline(data = means, aes(xintercept = mean_acc_precip), color = "black", linetype = "dashed") +
       geom_hline(data = means, aes(yintercept = mean_acc_tt), color = "black", linetype = "dashed") +
-      geom_label(label = plot_data$year, size = 3) +
+      geom_label(aes(label = plot_dt$year), size = 3) +
       labs(x = "Acc. Precipitation (mm)", y = "Acc. Thermal Time") +
       theme_minimal() +
       theme(legend.position = "none")
@@ -430,9 +446,12 @@ server <- function(input, output, session) {
     req(analysisDone())
     updateSiteSelectionUI()
     updateSiteSelectionBetweenUI()
-    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-    if (file.exists(charact_x_path)) {
-      data <- read.csv(charact_x_path)
+    
+    file_to_view <- input$fileToView
+    file_path <- paste0(resultFolderPath, "/", file_to_view)
+    
+    if (file.exists(file_path)) {
+      data <- read.csv(file_path)
       # Round all numeric columns to 2 decimal places
       data <- data %>% mutate(across(where(is.numeric), round, 2))
       # Debugging print statements
@@ -443,10 +462,11 @@ server <- function(input, output, session) {
         scrollX = TRUE
       ), escape = FALSE)
     } else {
-      print("awdawdawdawd")
+      print("File not found: ", file_to_view)
       return(NULL)
     }
   })
+  
   
   output$varSelectUI <- renderUI({
     req(analysisDone())
@@ -506,22 +526,38 @@ server <- function(input, output, session) {
     }
   })
   
+  #disable download button if no analysis. 
+  
+  observe({
+    if (analysisDone()) {
+      shinyjs::enable("downloadData")
+    } else {
+      shinyjs::disable("downloadData")
+    }
+  })
+  
   
   output$downloadData <- downloadHandler(
     filename = function() {
-      paste0(input$fileSelect, ".csv")
+      paste0("results_", Sys.Date(), ".zip")  # Name the zip file
     },
     content = function(file) {
-      selected_file_path <- file.path(resultFolderPath, input$fileSelect)
-      if (file.exists(selected_file_path)) {
-        file.copy(selected_file_path, file)
-      }
+      # Create a temporary directory to store the files
+      temp_dir <- tempdir()
+      files <- list.files(resultFolderPath, full.names = TRUE)
+      
+      # Copy the selected files to the temporary directory
+      file_paths <- file.path(temp_dir, basename(files))
+      file.copy(files, file_paths)
+      
+      # Create a zip file from the files in the temporary directory
+      zip::zipr(file, files = file_paths)
     }
   )
   
   output$fileSelectUI <- renderUI({
     req(analysisDone())
-    files <- list.files(resultFolderPath, pattern = "\\.csv$", full.names = FALSE)
+    files <- list.files(resultFolderPath, full.names = FALSE)
     selectInput("fileSelect", "Select File to Download", choices = files)
   })
   
@@ -636,34 +672,18 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "selectedSites_between", selected = character(0))
   })
   
-  filteredBetweenData <- reactive({
-    req(input$selectedSites_between)
-    req(analysisDone())
-    cat("Selected Sites for Between Data:", input$selectedSites_between, "\n")
-    
-    # Ensure that bigmet data is ready and reactive to selected sites
-    data <- bigmet()
-    cat("Bigmet data head:\n")
-    print(head(data))
-    
-    # Filter the bigmet data based on selected sites
-    filtered_data <- data %>% filter(Site %in% input$selectedSites_between)
-    cat("Filtered Data head:\n")
-    print(head(filtered_data))
-    
-    filtered_data
-  })
+
   
   output$plotBetweenSites <- renderPlot({
-    #req(filteredBetweenData())
+    
     req(analysisDone())
     selected_sites <- input$selectedSites_between
     
-    plot_dtt <- wthn_sites %>% summarize(acc_precip = mean(acc_precip), acc_tt = mean(acc_tt))%>% filter(Site %in% selected_sites)
-    plot_data <- filteredBetweenData() %>% filter(Site %in% selected_sites) %>%
+    plot_dtt <- wthn_sites %>% 
+      filter(Site %in% selected_sites) %>% 
       group_by(Site) %>%
-      summarize(acc_precip = mean(rain, na.rm = TRUE),
-                acc_tt = mean(tt, na.rm = TRUE))
+      summarize(acc_precip = mean(acc_precip, na.rm = TRUE),
+                acc_tt = mean(acc_tt, na.rm = TRUE))
     
     ggplot(plot_dtt) +
       aes(x = acc_precip, y = acc_tt) +
@@ -675,7 +695,6 @@ server <- function(input, output, session) {
            title = "10 Year Site Averages for a Typical Growing Season") +
       theme(legend.position = "none")
   })
-  
   
   
   
@@ -698,20 +717,7 @@ server <- function(input, output, session) {
       labs(x = "Total Precipitation", y = "Total Thermal Time", title = input$selectSite) +
       theme_minimal()
   })
-  
-  output$plotBetweenSites <- renderPlot({
-    req(bigmet())
-    site_summary <- bigmet() %>% 
-      group_by(Site) %>%
-      summarize(acc_precip = mean(sum(rain)), acc_tt = mean(sum(tt)))
-    
-    ggplot(site_summary, aes(x = acc_precip, y = acc_tt)) +
-      geom_point() +
-      geom_vline(aes(xintercept = mean(acc_precip)), color = "black", linetype = "dashed") +
-      geom_hline(aes(yintercept = mean(acc_tt)), color = "black", linetype = "dashed") +
-      geom_label(aes(label = Site), nudge_y = 0.05) +
-      theme_minimal()
-  })
+
   
   
   # 

@@ -1,6 +1,5 @@
 Todo:
 # for heatmaps, remove top dendrogram (columns should be in order by number), add text for the value on each tile, figure out where the NAs are coming from and get rid of it.
-# reinstate progress bar for analysis
 # get boxplots working again, make sure the x axis has each location
 # get the visualizations running on the main branch
 # in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
@@ -20,6 +19,10 @@ Major Issues:
 3. small_charact_dt has 141 lines but only 97 apsimx trials. Why? 
  > likely because of an issue with ISRIC, the soil database for soils outside the US. it returns errors, so the APSIM
    files can't be generated, and the trials can't be run. 
+2024/7/14:
+# reinstate progress bar for analysis (can only show 0 -> 100%, as shiny runs one job at a time.)
+
+
 
 2024/7/12:
 # on the same page as Upload and Analyse, have info to describe what cract_x, trials_x, dialy_charact_x are 

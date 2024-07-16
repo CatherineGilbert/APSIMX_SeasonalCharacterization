@@ -1,6 +1,8 @@
 library(shiny)
 library(shinydashboard)
+library(shinyWidgets)
 library(shinyBS)
+library(shinyjs)
 library(DT)
 library(readr)
 library(dplyr)
@@ -15,6 +17,7 @@ library(janitor)
 library(tidyverse)
 library(esquisse)
 library(tidyr)
+library(zip)
 
 
 # Define UI
@@ -32,6 +35,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
+    shinyjs::useShinyjs(),
     tags$head(
       tags$style(HTML("
       .content-wrapper {
@@ -86,8 +90,17 @@ ui <- dashboardPage(
                 selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
                 fileInput("fileUpload", "Upload Input File", accept = c(".csv")),
                 actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
-                uiOutput("fileSelectUI"),  # Add this line
-                downloadButton("downloadData", "Download Results")
+                downloadButton("downloadData", "Download Results"),
+                br(),
+                h3("Dataset Descriptions"),
+                p(strong("charact_x:"), " [Placeholder for charact_x description]"),
+                p(strong("trials_x:"), " [Placeholder for trials_x description]"),
+                p(strong("daily_charact_x:"), " [Placeholder for daily_charact_x description]"),
+                fluidRow(
+                  column(12,
+                         progressBar(id = "progressBar", value = 0, display_pct = TRUE)
+                  )
+                )
               )
       ),
       tabItem(tabName = "results",
@@ -180,8 +193,30 @@ server <- function(input, output, session) {
     }
   })
   
+  # for read log file for analysis progress
+  progress <- reactiveVal(0)
+  
+  observe({
+
+    invalidateLater(5000, session)
+    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+    if (file.exists("progress.log")) {
+      log_contents <- readLines("progress.log")
+      # Update progress based on the log contents
+      total_steps <- 16  # Define the total number of steps in the log
+      current_step <- length(log_contents)  # Update based on the number of log entries
+      progress_value <- round(current_step / total_steps * 100)
+      progress(progress_value)
+      updateProgressBar(session, id = "progressBar", value = progress_value)
+    }
+  })
+  
+  output$progressBar <- renderUI({
+    progressBar(id = "progressBar", value = progress(), display_pct = TRUE)
+  })
   
   
+  #----------------#
   selectedVariable <- reactiveVal()
   trials_df <- reactiveVal()
   observeEvent(input$fileUpload, {
@@ -211,6 +246,8 @@ server <- function(input, output, session) {
     
     setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
+    
+    file.create("progress.log")
     
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
@@ -518,22 +555,38 @@ server <- function(input, output, session) {
     }
   })
   
+  #disable download button if no analysis. 
+  
+  observe({
+    if (analysisDone()) {
+      shinyjs::enable("downloadData")
+    } else {
+      shinyjs::disable("downloadData")
+    }
+  })
+  
   
   output$downloadData <- downloadHandler(
     filename = function() {
-      paste0(input$fileSelect, ".csv")
+      paste0("results_", Sys.Date(), ".zip")  # Name the zip file
     },
     content = function(file) {
-      selected_file_path <- file.path(resultFolderPath, input$fileSelect)
-      if (file.exists(selected_file_path)) {
-        file.copy(selected_file_path, file)
-      }
+      # Create a temporary directory to store the files
+      temp_dir <- tempdir()
+      files <- list.files(resultFolderPath, full.names = TRUE)
+      
+      # Copy the selected files to the temporary directory
+      file_paths <- file.path(temp_dir, basename(files))
+      file.copy(files, file_paths)
+      
+      # Create a zip file from the files in the temporary directory
+      zip::zipr(file, files = file_paths)
     }
   )
   
   output$fileSelectUI <- renderUI({
     req(analysisDone())
-    files <- list.files(resultFolderPath, pattern = "\\.csv$", full.names = FALSE)
+    files <- list.files(resultFolderPath, full.names = FALSE)
     selectInput("fileSelect", "Select File to Download", choices = files)
   })
   

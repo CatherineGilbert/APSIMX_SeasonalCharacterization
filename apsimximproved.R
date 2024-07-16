@@ -26,7 +26,16 @@ codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #wh
 setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
 #setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
+clear_progress_log <- function() {
+  fileConn <- file("progress.log", "w")
+  close(fileConn)
+}
 
+log_progress <- function(message) {
+  write(message, file = "progress.log", append = TRUE)
+}
+
+log_progress("Starting analysis")
 crop <- readLines(paste0(codes_dir, "/selected_crop.txt"))
 trials_df <- read_csv(paste0(codes_dir,"/apsimx_output/output/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
@@ -88,7 +97,7 @@ parLapply(cl, seq_len(nrow(locyear_df)), function(idx) {
     write_apsim_met(imp_met_tmp, wrt.dir = "met", paste0("loc_", locyear_tmp$id_loc, ".met"))
   })
 })
-
+log_progress("finished getting weather data")
 
 # Get soil, make soil file -----
 soil_profile_list = list()
@@ -131,7 +140,7 @@ for (id in ids_needs_soil){
 }
 write_rds(soil_profile_list, "soils/soil_profile_list.rds")
 
-
+log_progress("finished getting soilr data")
 # Create APSIM files -----
 unlink("apsim", recursive = TRUE)
 dir.create("apsim")
@@ -172,7 +181,7 @@ apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
   }, error = function(e){})
   invisible()
 })
-
+log_progress("finished creating apsimx folders")
 # Run APSIM files -----
 
 # Define the number of batches
@@ -231,9 +240,11 @@ for (batch in 1:num_batches) {
   
   # Print out the progress
   cat(sprintf("Completed batch %d out of %d (%.2f%%)\n", batch, num_batches, 100 * batch / num_batches))
+  progressoutput <- sprintf("Completed batch %d out of %d (%.2f%%)", batch, num_batches, 100 * batch / num_batches)
+  log_progress(progressoutput)
 }
 
-
+log_progress("finished running apsimx")
 # Stop the cluster
 stopCluster(cl)
 
@@ -326,7 +337,7 @@ write_csv(trials_x, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
 write_csv(daily_charact_x, "output/daily_charact_x.csv")
 
-
+log_progress("finished apsimx")
 #calculate time duration for running the code:
 end_time <- Sys.time()
 duration <- end_time - start_time

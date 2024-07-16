@@ -2,7 +2,6 @@ Todo:
 # for heatmaps, remove top dendrogram (columns should be in order by number), add text for the value on each tile, figure out where the NAs are coming from and get rid of it.
 # get boxplots working again, make sure the x axis has each location
 # get the visualizations running on the main branch
-# in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
 # set up example soy and maize datasets for the final tool. verify.csv can become "soy_example.csv",
 and I can grab a maize example from Iris
 # move the input file out of the outputs folder.
@@ -21,7 +20,7 @@ Major Issues:
    files can't be generated, and the trials can't be run. 
 2024/7/14:
 # reinstate progress bar for analysis (can only show 0 -> 100%, as shiny runs one job at a time.)
-
+# in view results, tab the data display to be able to show all three outputs (trials_x, charact_x, daily_charact_x)
 
 
 2024/7/12:

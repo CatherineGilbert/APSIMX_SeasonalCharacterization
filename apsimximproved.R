@@ -20,12 +20,10 @@ Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 
-codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
-#codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-#codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
-#setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
-#setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
+#codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
+codes_dir <- "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization" 
+#setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 
 crop <- readLines(paste0(codes_dir, "/selected_crop.txt"))
 trials_df <- read_csv(paste0(codes_dir,"/apsimx_output/output/input.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%

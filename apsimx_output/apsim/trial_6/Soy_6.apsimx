@@ -12,8 +12,8 @@
       "Children": [
         {
           "$type": "Models.Clock, Models",
-          "Start": "1993-04-25T00:00:00",
-          "End": "1994-03-25T00:00:00",
+          "Start": "2015-04-19T00:00:00",
+          "End": "2016-03-19T00:00:00",
           "Name": "Clock",
           "ResourceName": null,
           "Children": [],
@@ -32,7 +32,7 @@
         {
           "$type": "Models.Climate.Weather, Models",
           "ConstantsFile": null,
-          "FileName": "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_2.met",
+          "FileName": "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_1.met",
           "ExcelWorkSheetName": "",
           "Name": "Weather",
           "ResourceName": null,
@@ -711,7 +711,7 @@
                 },
                 {
                   "Key": "SowDate",
-                  "Value": "25-May"
+                  "Value": "19-May"
                 },
                 {
                   "Key": "CultivarName",

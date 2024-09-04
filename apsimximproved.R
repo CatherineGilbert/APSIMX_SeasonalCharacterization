@@ -332,7 +332,7 @@ charact_x <- daily_output %>%
 
 daily_charact_x <- daily_output
 
-unlink("output",recursive = T) ; dir.create("output")
+#unlink("output",recursive = T) ; dir.create("output")
 write_csv(trials_x, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
 write_csv(daily_charact_x, "output/daily_charact_x.csv")

@@ -4,7 +4,7 @@ library(RColorBrewer)
 library(tidyverse)
 library(esquisse)
 library(lubridate)
-
+library(apsimx)
 #fernando miguez for information on why APSIM soybean model may not be progressing correctly
 
 setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")

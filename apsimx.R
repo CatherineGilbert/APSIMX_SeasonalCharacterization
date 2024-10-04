@@ -1,9 +1,6 @@
-#get feedback from breeders on what they think is valuable and what kind of outputs they value
-#for over-performance / under-performance can use maturity checks as yield checks 
-#check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
-#investigate structural equation modeling
+#include an ID with the raw character inputs
+#include trial_ID 
 
-#which of the seasonal variables are affecting the performance of the varieties
 
 # Start, set up trials_df -----
 
@@ -17,43 +14,54 @@ library(parallel)  # For parallel computing
 Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
-
-#codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
-codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-#setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
-setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
+setwd("C:/Users/cmg3/OneDrive/Documents/calib_output2") #folder where the output goes
 
 crop <- "Soy" 
-trials_df <- read_csv(paste0(codes_dir,"/verify.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
-
+trials_df <- read_csv(paste0(codes_dir,"/de_cht.csv")) 
+trials_df <- distinct(trials_df) %>% mutate(id_trial = row_number()) %>%
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
-trials_df <- trials_df %>% mutate(Planting = as.Date(Planting), Year = format(Planting,"%Y")) %>% 
-  mutate(sim_start = Planting %m-% months(1), sim_end = Planting %m+% months(10))
+
+#require year as part of the input
+prev_year <- as.numeric(substr(Sys.time(),1,4)) - 1
+if(!"Year" %in% colnames(trials_df)) {trials_df$Year <- NA}
+trials_df <- trials_df %>% mutate(
+  Planting = as_date(Planting), 
+  Year = ifelse(is.na(Planting), Year, format(Planting,"%Y")), 
+  Year = ifelse(is.na(Year), prev_year, Year), #if no year, use last year with full data
+  # if no planting date, use beginning and end of year as boundaries
+  sim_start = if_else(is.na(Planting), as_date(paste0(as.character(Year),"-01-01")), as_date(Planting %m-% months(1))), 
+  sim_end = if_else(is.na(Planting), as_date(paste0(as.character(Year),"-12-31")), as_date(Planting %m+% months(10))))
 
 # Get what maturities of cultivar we'll use
 if (crop == "Soy"){
-  trials_df <- trials_df %>%
-    mutate(Mat = case_when(
-      Genetics > 10 ~ "10",
-      Genetics <= -2 ~ "000",
-      Genetics == -1 ~ "00",
-      Genetics == 0 ~ "0",
-      Genetics >= 1 & Genetics <= 9 ~ as.character(Genetics)
-    )) %>% mutate(Mat = paste0("Generic_MG",Mat))
+  trials_df <- trials_df %>% mutate(gen1 = floor(Genetics), gen2 = Genetics - gen1) %>%
+    mutate(gen1 = case_when( 
+      gen1 >= 10 ~ "10",
+      gen1 <= -2 ~ "000",
+      gen1 == -1 ~ "00",
+      gen1 == 0 ~ "0",
+      gen1 >= 1 & Genetics <= 9 ~ as.character(gen1)
+    )) %>% mutate(gen2 = case_when( 
+      gen2 >= 0 & gen2 < 0.33 ~ "early",
+      gen2 >= 0.33 & gen2 < 0.66 ~ "mid",
+      gen2 >= 0.66 ~ "late"
+    )) %>% mutate(Mat = paste0(gen2,gen1)) %>% 
+    select(-gen1, -gen2)
 }
 
 if (crop == "Maize"){
   corn_mats <- c(80,90,95,100,103,105,108,110,112,115,120,130)
-  trials_df <- trials_df %>%
-  mutate(Mat = corn_mats[which.min(abs(corn_mats - Genetics))[1]]) %>%
+  trials_df <- trials_df %>% rowwise() %>%
+    mutate(Mat = corn_mats[which.min(abs(corn_mats - Genetics))[1]]) %>%
     mutate(Mat = paste0("B_",as.character(Mat)))
 }
 
 # Get weather, make met files -----
-prev_year <- as.numeric(substr(Sys.time(),1,4)) - 1
 
+# For each location, collect weather data for years from minimum (first requested year, ten years before now) to most recent full year
 locyear_df <- trials_df %>% select(X,Y,id_loc, sim_start) %>% 
   mutate(first_year = year(sim_start)) %>% 
   select(-sim_start) %>% unique() %>% group_by(id_loc,X,Y) %>%
@@ -132,7 +140,7 @@ write_rds(soil_profile_list, "soils/soil_profile_list.rds")
 # Create APSIM files -----
 unlink("apsim", recursive = TRUE)
 dir.create("apsim")
-file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"), 
+file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"),
           to = paste0(crop, "_.apsimx"), overwrite = TRUE)
 
 # Prepare for parallel processing
@@ -140,13 +148,8 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
                     "paste0", "dir.create", "file.copy", "tryCatch", "print"))
 
-Sys.setlocale("LC_ALL", "English_United States")
-
-#edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
-
 # Parallel APSIM files creation
 apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
-  Sys.setlocale("LC_ALL", "English_United States")
   trial_tmp <- trials_df[trial_n,]
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
@@ -158,11 +161,19 @@ apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
               node = "Clock", parm = "End", value = paste0(trial_tmp$sim_end,"T00:00:00"), verbose = F)
   edit_apsimx(file = filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T,
               node = "Weather", value = paste0(getwd(),"/met/loc_",trial_tmp$id_loc,".met"), verbose = F)
-  edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
-              node = "Manager", manager.child = "Sow on a fixed date",
-              parm = "SowDate", value = as.character(format(trial_tmp$Planting, "%d-%b")), verbose = F)
-  edit_apsimx(filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T, node = "Crop", parm = "SowDate", 
-              value = as.character(format(trial_tmp$Planting, "%d-%b")), verbose = F)
+  if (is.na(trial_tmp$Planting)) {
+    edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+                node = "Manager", manager.child = "Sowing",
+                parm = "SowDate", value = "NA", verbose = F)
+    edit_apsimx(filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T, node = "Crop", parm = "SowDate", 
+                value = "NA", verbose = F)
+  } else {
+    edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
+                node = "Manager", manager.child = "Sowing",
+                parm = "SowDate", value = as.character(format(trial_tmp$Planting, "%d-%b")), verbose = F)
+    edit_apsimx(filename, src.dir = source_dir, wrt.dir = write_dir, overwrite = T, node = "Crop", parm = "SowDate", 
+                value = as.character(format(trial_tmp$Planting, "%d-%b")), verbose = F)
+  }
   edit_apsimx(filename, src.dir = source_dir,  wrt.dir = write_dir, overwrite = T,
               node = "Crop", parm = "CultivarName", value = trial_tmp$Mat, verbose = F)
   tryCatch({
@@ -200,13 +211,11 @@ for (batch in 1:num_batches) {
   # Run APSIM simulations in parallel for the current batch
   # Run APSIM simulations in parallel
   results <- parLapply(cl, trial_list, function(trial) {
-    Sys.setlocale("LC_ALL", "English_United States")
     trial_n <- trial$id_trial  # Assuming 'id_trial' is the identifier
     source_dir <- paste0("apsim/trial_", trial_n)
     filename <- paste0(crop, "_", trial_n, ".apsimx")
     output <- data.frame()  # Initialize an empty data frame for the results
-    log_file <- paste0(source_dir, "/", crop, "_", trial_n, "_log.txt")
-    sink(log_file, append = TRUE)
+    
     # Wrap APSIM simulation and result handling in tryCatch to handle any errors
     tryCatch({
       output_tmp <- apsimx(filename, src.dir = source_dir)
@@ -215,8 +224,6 @@ for (batch in 1:num_batches) {
       output <- rbind(output, output_tmp)
       # Save individual trial results
       write_csv(output_tmp, file = paste0(source_dir, "/", crop, "_", trial_n, "_out.csv"))
-      cat(sprintf("Successfully written file for trial %d", trial_n))
-      
       return(output)  # Return the output for this trial
     }, error = function(e){
       cat(paste0("Simulation for trial ", trial_n, " failed with error: ", e$message, "\n"))
@@ -241,53 +248,47 @@ stopCluster(cl)
 
 # Merge Outputs
 outfiles <- list.files("apsim/", pattern = "_out", recursive = T)
-daily_output <- data.table::rbindlist(lapply(outfiles, function(x){read_csv(paste0("apsim/",x),show_col_types = FALSE)}))
-daily_output <- select(daily_output, -CheckpointID,-SimulationID,-Zone,-Year) %>% arrange(id_trial)
+daily_output <- data.table::rbindlist(lapply(outfiles, function(x){read_csv(paste0("apsim/",x),show_col_types = FALSE)}),use.names = T)
+daily_output <- select(daily_output, -CheckpointID,-SimulationID,-SimulationName,-Zone,-Year) %>% arrange(id_trial)
 
-# Add cumulative precipitation and thermal time
-daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>% 
-  relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) 
+# Get simulated sowing and harvest dates
+simsows <- select(daily_output, id_trial, SimSowDate) %>% filter(!is.na(SimSowDate)) 
+simharvs <- select(daily_output, id_trial, SimHarvestDate) %>% filter(!is.na(SimHarvestDate)) 
+simdates <- left_join(simsows, simharvs)
+daily_output <- select(daily_output, -SimSowDate, -SimHarvestDate)
 
-# Get simulated maturity dates 
-mats <- group_by(daily_output, id_trial) %>% select(Stage, Date, id_trial) %>%
-  filter(Stage == max(Stage)) %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
-#mats <- group_by(daily_output, id_trial) %>% select(StageName, Date, id_trial) %>%
-#filter(StageName == "Maturing") %>% filter(Date == min(Date)) %>% mutate(MatDate_Sim = date(Date), .keep = "none")
+# Trim season (daily_output) to one month before planting and one month after death / harvest
+simdates <- simdates %>% mutate(StartDate = date(SimSowDate) %m-% months(1), EndDate = date(SimHarvestDate) %m+% months(1)) %>%
+  select(id_trial, StartDate, SimSowDate, SimHarvestDate, EndDate)
+daily_output <- group_by(daily_output, id_trial) %>% left_join(select(simdates,id_trial, StartDate, EndDate)) %>%
+  filter(Date >= StartDate & Date <= EndDate) %>% select(-StartDate,-EndDate)
 
-# Trim season to one month after death / harvest
-sim_trim <- group_by(daily_output, id_trial) %>% select(Stage, Date, id_trial) %>%
-  filter(Stage == max(Stage)) %>% filter(Date == max(Date)) %>% 
-  mutate(sim_end = date(Date) %m+% months(1)) %>% select(id_trial, sim_end)
-daily_output <- daily_output %>% group_by(id_trial) %>% left_join(sim_trim) %>% filter(Date <= sim_end) %>% select(-sim_end)
-
-# Format Outputs into the Characterization
+# Create trials_x from trial-specific information
 yields <- group_by(daily_output, id_trial) %>% summarize(Yield_Sim = max(Yieldkgha),  MaxStage = max(Stage))
 res <- group_by(daily_output, id_trial) %>% filter(!is.na(Result)) %>% select(id_trial, Result)
-
-trials_x <- left_join(trials_df, yields) %>% left_join(mats) %>% left_join(res) 
-trials_x <- select(trials_x, -sim_end) %>% left_join(sim_trim)
-trials_x <- rename(trials_x, Latitude = Y, Longitude = X) %>%
-  mutate(DTM_Sim = as.numeric(MatDate_Sim - Planting)) %>%
-  relocate(id_trial, id_loc, Site, Latitude, Longitude, Planting, MatDate_Sim, 
-           DTM_Sim, sim_start, sim_end, Year, Genetics, Mat, Yield_Sim)
+trials_x <- rename(trials_df, Latitude = Y, Longitude = X)
+trials_x <- trials_x %>% select(-sim_start, -sim_end) %>% left_join(yields) %>% left_join(simdates) %>% left_join(res) 
+trials_x <- mutate(trials_x, DTM_Sim = as.numeric(SimHarvestDate - SimSowDate)) %>%
+  relocate(DTM_Sim, .after = SimSowDate)
+trials_x <- rename(trials_x, MatDate_Sim = SimHarvestDate, Planting_Sim = SimSowDate) #!!! clean up variable naming later
 
 # Periods
-max_stage <- daily_output %>% 
-  group_by(id_trial) %>% 
-  summarise(max_stage = max(Stage, na.rm = TRUE)) %>% 
-  summarise(max_stage = max(max_stage)) %>% 
-  pull() %>% 
-  round()
+if (crop %in% c("Soy","Maize")) {
+  max_stage <- 11
+} else {
+  max_stage <- max(daily_output$Stage)
+}
 
-# Join and mutate
-
-daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
+daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting_Sim)) %>% 
    mutate(Period = case_when(
-   Stage == 1 & (as_date(Date) < Planting) ~ 1,
-   Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max_stage,
+   Stage == 1 & (as_date(Date) < Planting_Sim) ~ 1,
+   Stage == 1 & (as_date(Date) >= MatDate_Sim) ~ max_stage,
    .default = floor(Stage)
- )) %>% select(-MatDate_Sim) %>% 
+ )) %>% select(-Planting_Sim, -MatDate_Sim) %>% 
    mutate(Period = factor(Period, ordered = T, levels = as.character(1:max_stage)))
+
+# Add cumulative precipitation and thermal time
+daily_output <- daily_output %>% group_by(id_trial) %>% mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime))
 
 # daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
 #   mutate(Stage = case_match(
@@ -308,15 +309,13 @@ daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Si
 
 charact_x <- daily_output %>% 
   group_by(Period, id_trial) %>% select(-Yieldkgha, -Stage) %>% 
-  mutate(AccPrecip = cumsum(Rain), AccTT = cumsum(ThermalTime)) %>%
-  summarize(across(where(is.numeric) & !c(DOY,AccPrecip,AccTT), function(x){mean(x,na.omit=T)}), 
-            AccPrecip = max(AccPrecip), AccTT = max(AccTT),
-            Start_Date = min(Date), End_Date = max(Date)) %>% 
-  mutate(Length = as.numeric(End_Date - Start_Date), Start_DOY = yday(Start_Date), End_DOY = yday(End_Date)) %>%
-  select(-Start_Date, -End_Date) %>% 
+  summarize(across(where(is.numeric) & !c(DOY,AccPrecip,AccTT,AccEmTT), function(x){mean(x,na.omit=T)}), 
+            AccPrecip = sum(Rain), AccTT = sum(ThermalTime), AccEmTT = max(AccEmTT),
+            Period_Start_Date = min(Date), Period_End_Date = max(Date)) %>% 
+  mutate(Length = as.numeric(Period_End_Date - Period_Start_Date), Period_Start_DOY = yday(Period_Start_Date), Period_End_DOY = yday(Period_End_Date)) %>%
   relocate(id_trial, Period, Rain) %>% 
-  relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, .after = ThermalTime) %>%
-  relocate(Start_DOY, Length, End_DOY, .after = last_col()) %>%
+  relocate(AccPrecip, .after = Rain) %>% relocate(AccTT, AccEmTT, .after = ThermalTime) %>%
+  relocate(Period_Start_DOY, Length, Period_End_DOY, .after = last_col()) %>%
   arrange(id_trial) 
 
 daily_charact_x <- daily_output

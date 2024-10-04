@@ -1,5 +1,6 @@
 library(shiny)
 library(shinydashboard)
+library(shinyWidgets)
 library(shinyBS)
 library(shinyjs)
 library(DT)
@@ -17,168 +18,124 @@ library(tidyverse)
 library(esquisse)
 library(tidyr)
 library(zip)
+library(bslib)
 
 
 # Define UI
-ui <- dashboardPage(
-  dashboardHeader(title = "Trial Characterization Results"),
-  dashboardSidebar(
-    sidebarMenu(
-      menuItem("Description", tabName = "description", icon = icon("info")),
-      menuItem("Upload and Analyze", tabName = "analysis", icon = icon("upload")),
-      menuItem("View Results", tabName = "results", icon = icon("image")),
-      menuItem("View Heatmap", tabName = "heatmap", icon = icon("fire")),
-      menuItem("Daily Between Sites", tabName = "daily_between_sites", icon = icon("chart-line")),
-      menuItem("10 year plot at one Site", tabName = "faceted_comparison", icon = icon("chart-area")),
-      menuItem("Between Sites", tabName = "between_sites", icon = icon("chart-bar"))
-    )
-  ),
-  dashboardBody(
-    shinyjs::useShinyjs(),
-    tags$head(
-      tags$style(HTML("
-      .content-wrapper {
-        overflow-x: auto;
-      }
-      .main-sidebar {
-        overflow-x: hidden;
-      }
-      .box-body {
-        overflow-x: auto;
-      }
-       .large-text-label .control-label {
-      font-size: 24px; /* Adjust the size as needed */
-      font-weight: bold;
-    } 
-    ")),
-      tags$script(HTML("
-      $(document).on('shiny:sessioninitialized', function(event) {
-        $('.sidebar-toggle').on('click', function() {
-          setTimeout(function() {
-            $(window).trigger('resize');
-          }, 250); // Adjust timing if necessary
-        });
-      });
-
-      // Additional script to ensure plots resize correctly after rendering
-      $(document).on('shiny:value', function(event) {
-        if (event.name === 'heatmapPlot') {
-          setTimeout(function() {
-            $(window).trigger('resize');
-          }, 500);
-        }
-      });
-    "))
+ui <- fluidPage(
+  theme = bs_theme(bootswatch = "flatly"),  # Apply a modern theme
+  navbarPage(
+    title = tags$div(
+      style = "display: flex; align-items: center;",
+      tags$img(src = "aces.png", height = "40px", style = "margin-right: 10px;"),
+      tags$span("Trial Characterization Results", style = "font-size: 24px; font-weight: bold;")
     ),
-    tabItems(
-      tabItem(tabName = "description",
-              fluidPage(
-                h2("Seasonal Characterization Tool"),
-                p("Built in R and Shiny using the apsimr package."),
-                p("Purpose: To characterize the growing season at one or more sites according to the crop’s response to environmental conditions at those sites."),
-                h3("Seasonal Characterization Tool Can be used to:"),
-                tags$ul(
-                  tags$li("Understand environment in terms of the conditions / stressors present at specific stages of the crop’s development."),
-                  tags$li("Compare seasonal conditions between sites and how those conditions have changed over time."),
-                  tags$li("Predict crop phenology and performance from a cultivar’s maturity, planting date, and location.")
-                )
-              )
-      ),
-      tabItem(tabName = "analysis",
-              fluidPage(
-                selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
-                fileInput("fileUpload", "Upload Input File", accept = c(".csv")),
-                actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
-               # uiOutput("fileSelectUI"),  // if we want to select file we add it back
-                downloadButton("downloadData", "Download Results"),
-                br(),
-                h3("Dataset Descriptions"),
-                p(strong("charact_x:"), " [Placeholder for charact_x description]"),
-                p(strong("trials_x:"), " [Placeholder for trials_x description]"),
-                p(strong("daily_charact_x:"), " [Placeholder for daily_charact_x description]")
-              )
-      ),
-      tabItem(tabName = "results",
-              fluidPage(
-                uiOutput("varSelectUI"),
-                actionButton("plotButton", "Generate Boxplot"),
-                plotOutput("boxplot"),
-                div(
-                  class = "large-text-label",
-                  selectInput("fileToView", "Select File to View", choices = c("charact_x.csv", "daily_charact_x.csv", "trials_x.csv"))
-                ),
-                DTOutput("viewData")
-              )
-      ),
-      tabItem(tabName = "heatmap",
-              fluidPage(
-                p("This heatmap visualizes the means of the selected variable by site and genetic group. 
-            Use the dropdown menus to select the variable and genetic group for analysis."),
-                uiOutput("varHeatmapUI"),
-                uiOutput("genSelectUI"),
-                uiOutput("heatmapPlotUI")  # Use uiOutput to render the heatmap plot
-              )
-      ),
-      tabItem(tabName = "daily_between_sites",
-              fluidPage(p("This section allows you to compare daily accumulated precipitation and thermal time between different sites. Select the comparison type and sites for analysis."),
-              fluidRow(
-                column(width = 9,  # Adjust the width as needed
-                       selectInput("comparisonType", "Select Comparison Type", choices = c(
-                         "Accumulated Precipitation (Day of Year)" = "precip_doy",
-                         "Accumulated Thermal Time (Day of Year)" = "tt_doy",
-                         "Accumulated Precipitation (Days after Sowing)" = "precip_das",
-                         "Accumulated Thermal Time (Days after Sowing)" = "tt_das"
-                       )),
-                       plotOutput("comparisonPlot")
-                ),
-                column(width = 3,  # Adjust the width as needed
-                       uiOutput("siteSelectionUI")
-                )
-              )
-              )
-      ),
-      tabItem(tabName = "between_sites",
-              fluidPage(
-                p("This section visualizes the 10-year site averages for a typical growing season, comparing accumulated precipitation and thermal time between selected sites."),
-              fluidRow(
-                column(width = 3,
-                       uiOutput("siteSelectionUI_between")
-                ),
-                column(width = 9,
-                       plotOutput("plotBetweenSites")
-                )
-              )
-              )
-      ),
-      tabItem(tabName = "faceted_comparison",
-              fluidPage(
-                p("This section provides a faceted comparison of accumulated precipitation and thermal time for different sites. Select the sites to visualize the comparison."),
-              fluidRow(
-                column(width = 3,
-                       uiOutput("siteSelectionUI_faceted")
-                ),
-                column(width = 9,
-                       plotOutput("facetedComparisonPlot")
-                )
-              )
+    
+    tabPanel(
+      title = "Description",
+      fluidPage(
+        h2("Seasonal Characterization Tool"),
+        p("Built in R and Shiny using the apsimr package."),
+        p("Purpose: To characterize the growing season at one or more sites according to the crop's response to environmental conditions at those sites."),
+        h3("Seasonal Characterization Tool Can be used to:"),
+        tags$ul(
+          tags$li("Understand the environment in terms of the conditions/stressors present at specific stages of the crop's development."),
+          tags$li("Compare seasonal conditions between sites and how those conditions have changed over time."),
+          tags$li("Predict crop phenology and performance from a cultivar's maturity, planting date, and location.")
+        ),
+        h4("Instructions"),
+        p("Use the 'Upload and Analyze' page to upload your input data and run the analysis."),
+        p("View results in the 'Visualizations and Results' page."),
+        h5("Contact"),
+        p("For questions, suggestions, or contributions, reach out to:"),
+        p("Sam Shi, mshi17@illinois.edu"),
+        p("Catherine Gilbert, cmg3@illinois.edu"),
+        p("GitHub: https://github.com/CatherineGilbert/APSIMX_SeasonalCharacterization")
       )
+    ),
+    
+    tabPanel(
+      title = "Upload and Analyze",
+      fluidPage(
+        selectInput("cropType", "Select Crop Type", choices = c("Maize" = "Maize", "Soy" = "Soy")),
+        fileInput("fileUpload", "Upload Input File", accept = c(".csv")),
+        actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
+        downloadButton("downloadData", "Download Results"),
+        br(),
+        h3("Dataset Descriptions"),
+        p(strong("charact_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation."),
+        p(strong("trials_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation."),
+        p(strong("daily_charact_x:"), " Contains the recorded values of the reporting variables at each day of each simulation."),
+        uiOutput("progressBar")  # Display the progress bar here
+      )
+    ),
+    
+    tabPanel(
+      title = "Visualizations and Results",
+      fluidPage(
+        tabsetPanel(
+          tabPanel(
+            title = "Boxplot",
+            div(
+              class = "large-text-label control-label",
+              tags$label("Boxplot")
+            ),
+            uiOutput("fileSelectPlotUI"),
+            uiOutput("varSelectUI"),
+            plotOutput("boxplot"),
+            downloadButton("downloadBoxplot", "Download Boxplot")
+          ),
+          tabPanel(
+            title = "Heatmap",
+            p("This heatmap visualizes the means of the selected variable by site and genetic group."),
+            uiOutput("varHeatmapUI"),
+            uiOutput("genSelectUI"),
+            plotOutput("heatmapPlot"),
+            downloadButton("downloadHeatmap", "Download Heatmap")
+          ),
+          tabPanel(
+            title = "Daily Comparison",
+            p("Compare daily accumulated precipitation and thermal time between different sites."),
+            selectInput("comparisonType", "Select Comparison Type", choices = c(
+              "Accumulated Precipitation (Day of Year)" = "precip_doy",
+              "Accumulated Thermal Time (Day of Year)" = "tt_doy",
+              "Accumulated Precipitation (Days after Sowing)" = "precip_das",
+              "Accumulated Thermal Time (Days after Sowing)" = "tt_das"
+            )),
+            plotOutput("comparisonPlot"),
+            downloadButton("downloadComparisonPlot", "Download Plot")
+          ),
+          tabPanel(
+            title = "10-Year Averages",
+            p("Visualize the 10-year site averages for a typical growing season."),
+            plotOutput("plotBetweenSites"),
+            downloadButton("downloadBetweenSitesPlot", "Download Plot")
+          )
+        )
       )
     )
   )
 )
 # Define server logic
 server <- function(input, output, session) {
-
+  
   gen <- 1 # should be selectable for heatmap
   setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
   # Path to the scripts and results
   codesPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization"
   resultFolderPath <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/output"
-
+  heatmap_plot <- reactiveVal(NULL)
   # Reactive values for storing the analysis state and the selected variable
-  analysisDone <- reactiveVal(FALSE)
-  #analysisDone <- reactiveVal(TRUE)
+  #analysisDone <- reactiveVal(FALSE)
+  analysisDone <- reactiveVal(TRUE)
   analysisInProgress <- reactiveVal(FALSE)
+  observe({
+    req(analysisDone())
+    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/visualization.R")
+  })
+  
+  
+  
   
   observe({
     if (analysisInProgress()) {
@@ -188,8 +145,30 @@ server <- function(input, output, session) {
     }
   })
   
+  # for read log file for analysis progress
+  progress <- reactiveVal(0)
+  
+  observe({
+    
+    invalidateLater(5000, session)
+    setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
+    if (file.exists("progress.log")) {
+      log_contents <- readLines("progress.log")
+      # Update progress based on the log contents
+      total_steps <- 16  # Define the total number of steps in the log
+      current_step <- length(log_contents)  # Update based on the number of log entries
+      progress_value <- round(current_step / total_steps * 100)
+      progress(progress_value)
+      updateProgressBar(session, id = "progressBar", value = progress_value)
+    }
+  })
+  
+  output$progressBar <- renderUI({
+    progressBar(id = "progressBar", value = progress(), display_pct = TRUE)
+  })
   
   
+  #----------------#
   selectedVariable <- reactiveVal()
   trials_df <- reactiveVal()
   observeEvent(input$fileUpload, {
@@ -220,9 +199,14 @@ server <- function(input, output, session) {
     setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
+    file.create("progress.log")
+    
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
+    
     source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved.R")
+    
+    
     #update outputs and visaluzations
     #think about future labs and also company opportunities after i graduate next year
     
@@ -382,19 +366,24 @@ server <- function(input, output, session) {
   })
   
   
-  # Render the comparison plot based on the selected comparison type
+  # Store the generated plot for download
+  comparison_plot_data <- reactiveVal()
+  
   output$comparisonPlot <- renderPlot({
     req(accumulatedData(), input$comparisonType)
     data <- accumulatedData()
+    
+    p <- ggplot(data) 
+    
     if (input$comparisonType == "precip_doy") {
-      ggplot(data) + 
+      p <- p + 
         aes(x = day, y = acc_precip, colour = Site) +
         geom_line() +
         scale_color_hue(direction = 1) +
         labs(x = "Day of Year", y = "Accumulated Precipitation (mm)") +
         theme_minimal()
     } else if (input$comparisonType == "tt_doy") {
-      ggplot(data) + 
+      p <- p + 
         aes(x = day, y = acc_tt, colour = Site) +
         geom_line() +
         scale_color_hue(direction = 1) +
@@ -402,7 +391,7 @@ server <- function(input, output, session) {
         theme_minimal()
     } else if (input$comparisonType == "precip_das") {
       sdbtw_sites <- data %>% mutate(day = day - min(day) + 1)
-      ggplot(sdbtw_sites) + 
+      p <- p + 
         aes(x = day, y = acc_precip, colour = Site) +
         geom_line() +
         scale_color_hue(direction = 1) +
@@ -410,27 +399,45 @@ server <- function(input, output, session) {
         theme_minimal()
     } else if (input$comparisonType == "tt_das") {
       sdbtw_sites <- data %>% mutate(day = day - min(day) + 1)
-      ggplot(sdbtw_sites) + 
+      p <- p + 
         aes(x = day, y = acc_tt, colour = Site) +
         geom_line() +
         scale_color_hue(direction = 1) +
         labs(x = "Days after Sowing", y = "Acc. Thermal Time") +
         theme_minimal()
     }
+    
+    comparison_plot_data(p)  # Store the plot in a reactive value
+    print(p)  # Render the plot
   })
   
+  # Download handler for the daily between sites plot
+  output$downloadComparisonPlot <- downloadHandler(
+    filename = function() {
+      paste0("comparison_plot-", input$comparisonType, "-", Sys.Date(), ".png")
+    },
+    content = function(file) {
+      png(file, width = 800, height = 600)
+      print(comparison_plot_data())  # Print the stored plot
+      dev.off()
+    }
+  )
+  
+  
+  # Store the generated plot for download
+  faceted_comparison_plot_data <- reactiveVal()
+  
   output$facetedComparisonPlot <- renderPlot({
-
     req(input$selectedSites_faceted)
     selected_sites <- input$selectedSites_faceted
     print(selected_sites)
-
+    
     plot_dt <- wthn_sites %>% filter(Site %in% selected_sites)
     means <- plot_dt %>% group_by(Site) %>%
       summarise(mean_acc_precip = mean(acc_precip, na.rm = TRUE),
                 mean_acc_tt = mean(acc_tt, na.rm = TRUE))
-  
-    ggplot(plot_dt, aes(x = acc_precip, y = acc_tt)) +
+    
+    p <- ggplot(plot_dt, aes(x = acc_precip, y = acc_tt)) +
       facet_wrap(vars(Site), scales = "free") +
       geom_vline(data = means, aes(xintercept = mean_acc_precip), color = "black", linetype = "dashed") +
       geom_hline(data = means, aes(yintercept = mean_acc_tt), color = "black", linetype = "dashed") +
@@ -438,7 +445,22 @@ server <- function(input, output, session) {
       labs(x = "Acc. Precipitation (mm)", y = "Acc. Thermal Time") +
       theme_minimal() +
       theme(legend.position = "none")
+    
+    faceted_comparison_plot_data(p)  # Store the plot in a reactive value
+    print(p)  # Render the plot
   })
+  
+  # Download handler for the faceted comparison plot
+  output$downloadFacetedComparisonPlot <- downloadHandler(
+    filename = function() {
+      paste0("faceted_comparison_plot-", Sys.Date(), ".png")
+    },
+    content = function(file) {
+      png(file, width = 1200, height = 800)
+      print(faceted_comparison_plot_data())  # Print the stored plot
+      dev.off()
+    }
+  )  
   
   
   
@@ -467,12 +489,21 @@ server <- function(input, output, session) {
     }
   })
   
+  #first select file for boxplot
+  output$fileSelectPlotUI <- renderUI({
+    req(analysisDone())
+    files <- c("trials_x.csv", "charact_x.csv", "daily_charact_x.csv")
+    selectInput("fileSelectPlot", "Select File to Plot", choices = files, selected = "trials_x.csv")
+  })
   
+  #second select var for UI
   output$varSelectUI <- renderUI({
     req(analysisDone())
-    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-    if (file.exists(charact_x_path)) {
-      data <- read.csv(charact_x_path)
+    selected_file <- input$fileSelectPlot  # Use the selected file
+    file_path <- paste0(resultFolderPath, "/", selected_file)
+    
+    if (file.exists(file_path)) {
+      data <- read.csv(file_path)
       selectInput("varSelect_boxplot", "Select Variable", choices = names(data)[-1])
     }
   })
@@ -481,50 +512,55 @@ server <- function(input, output, session) {
     selectedVariable(input$varSelect_boxplot)
   }, ignoreInit = TRUE)
   
+  # Store the generated plot for download
+  boxplot_data <- reactiveVal()
+  
   output$boxplot <- renderPlot({
     req(analysisDone(), selectedVariable())
-    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+    selected_file <- input$fileSelectPlot  # Use the selected file
+    file_path <- paste0(resultFolderPath, "/", selected_file)
     
-    if (file.exists(charact_x_path)) {
-      data <- read.csv(charact_x_path)
+    if (file.exists(file_path)) {
+      data <- read.csv(file_path)
+      
+      if (selected_file != "trials_x.csv") {
+        trials_x <- read.csv(paste0(resultFolderPath, "/trials_x.csv"))
+        data <- left_join(data, trials_x[, c("id_trial", "Site")], by = "id_trial")
+      }
+      
       data$Site <- as.factor(data$Site)  # Ensure Site is treated as a factor
       
       selected_var <- selectedVariable()
       
-      # Debugging print statements
-      print("Selected variable is:")
-      print(selected_var)
-      print("Column names of data are:")
-      print(names(data))
-      print("Dimensions of data are:")
-      print(dim(data))
-      
       # Check if selected_var is in the column names of data
       if(selected_var %in% names(data)) {
-        print("Summary of selected variable:")
-        print(summary(data[[selected_var]]))
-        
-        # Additional debugging to see if any NA values or other issues
-        print("Checking for NA values in selected variable:")
-        print(sum(is.na(data[[selected_var]])))
-        
-        # Ensure that we have non-zero length for the selected variable column
-        if (length(data[[selected_var]]) != nrow(data)) {
-          print(paste("Error: Length of selected variable column", length(data[[selected_var]]), "does not match number of rows", nrow(data)))
-        }
-        
-        # Create the bar plot
-        ggplot(data, aes(x = Site, y = .data[[selected_var]], fill = Site)) +
-          geom_bar(stat = "identity") +
+        # Create the box plot
+        p <- ggplot(data, aes(x = Site, y = .data[[selected_var]], fill = Site)) +
+          geom_boxplot() +  # Use geom_boxplot to create a box plot
           labs(x = "Site", y = selected_var) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        
+        boxplot_data(p)  # Store the plot in a reactive value
+        print(p)  # Render the plot
       } else {
         print(paste("Error: Variable", selected_var, "not found in data frame"))
       }
     } else {
-      print(paste("Error: File", charact_x_path, "does not exist"))
+      print(paste("Error: File", selected_file, "does not exist"))
     }
   })
+  
+  # Download handler for the boxplot
+  output$downloadBoxplot <- downloadHandler(
+    filename = function() {
+      paste0("boxplot-", input$varSelect_boxplot, "-", Sys.Date(), ".png")
+    },
+    content = function(file) {
+      png(file, width = 800, height = 600)
+      print(boxplot_data())  # Print the stored plot
+      dev.off()
+    }
+  )
   
   #disable download button if no analysis. 
   
@@ -572,75 +608,99 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  output$heatmapPlotUI <- renderUI({
-    updateSiteSelectionFacetdUI()
-    req(input$heatmapSelect)  # Ensure there's a selected value
-    plotOutput("heatmapPlot", width = "70%", height = "600px")
-  })
-  
-  
-  
-  
-  
-  heatmap_data <- reactive({
-    req(input$heatmapSelect)  # Ensure a variable is selected
-    req(analysisDone())
-    gen <- input$genSelect 
-    var <- input$heatmapSelect
-    # Logic to prepare the heatmap matrix
-    charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
-    trials_x_path <-paste0(resultFolderPath,"/trials_x.csv")
-    daily_charact_x_path <- paste0(resultFolderPath,"/daily_charact_x.csv")
-    
-    
-    trials_x <- read_csv(trials_x_path)
-    charact_x <- read_csv(charact_x_path)
-    daily_charact_x <- read_csv(daily_charact_x_path)
-    
-    j_dt <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% left_join(charact_x)
-    
-    if (file.exists(charact_x_path)) {
-      var <- input$heatmapSelect
-      var_mat <- j_dt %>% select(id_trial, Site, Period, starts_with(var)) %>%
-        pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
-        group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
-        column_to_rownames("Site") %>%
-        remove_empty(which = "rows") %>%
-        as.matrix()
-      
-      
-      pheatmap(var_mat, angle_col = 45,
-               color=brewer.pal(11,"RdBu"),
-               fontsize = 10, 
-               display_numbers = round(var_mat, 2), 
-               number_color = "white", 
-               #scale = "column",
-               number_format = "%.2f", 
-               legend = F,
-               cluster_cols = F,
-               cluster_rows = T,
-               main = paste0("Means of ",var," by Site (MG ",gen,")"))
-    } else {
-      plot(NULL, main = "Data not available")
-    }
-    list(var_mat = var_mat, var = var)
-  })
-  
-  output$heatmapPlot <- renderPlot({
-    data <- req(heatmap_data())  # Make sure data is available
-    pheatmap(data$var_mat, main = paste("Heatmap for", data$var))
-  })
-  
   output$varHeatmapUI <- renderUI({
     req(analysisDone())
     charact_x_path <- paste0(resultFolderPath, "/daily_charact_x.csv")
     if(file.exists(charact_x_path)) {
       charact_x <- read.csv(charact_x_path)
-      varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>% names()
+      varchoice <- charact_x %>% ungroup() %>% select(where(is.numeric) & !c(id_trial, Period)) %>%select(-c(DOY, Stage)) %>%  names()
+      print(varchoice)
       selectInput("heatmapSelect", "Select Variable for Heatmap", choices = varchoice)
+      
     }
   })
+  
+  observe({
+    output$heatmapPlotUI <- renderUI({
+      updateSiteSelectionFacetdUI()
+      #graphics.off()
+      req(input$heatmapSelect)  # Ensure there's a selected value
+      plotOutput("heatmapPlot", height = "600px", width = "90%")
+      
+    })
+  })
+  
+  
+  
+  
+  
+  
+  output$heatmapPlot <- renderPlot(
+    
+    {
+      req(input$heatmapSelect)  # Ensure a variable is selected
+      req(analysisDone())
+      gen <- input$genSelect 
+      var <- input$heatmapSelect
+      # Logic to prepare the heatmap matrix
+      charact_x_path <- paste0(resultFolderPath, "/charact_x.csv")
+      trials_x_path <-paste0(resultFolderPath,"/trials_x.csv")
+      daily_charact_x_path <- paste0(resultFolderPath,"/daily_charact_x.csv")
+      
+      
+      trials_x <- read_csv(trials_x_path)
+      charact_x <- read_csv(charact_x_path)
+      daily_charact_x <- read_csv(daily_charact_x_path)
+      
+      j_dt <- filter(trials_x, Genetics == gen) %>% select(id_trial,Genetics, Site) %>% left_join(charact_x)
+      
+      if (file.exists(charact_x_path)) {
+        var <- input$heatmapSelect
+        var_mat <- j_dt %>% select(id_trial, Site, Period, starts_with(var)) %>%
+          pivot_wider(names_from = Period, values_from = var) %>% select(-id_trial) %>%
+          group_by(Site) %>% summarize(across(where(is.numeric), function(x){mean(x,na.rm=T)})) %>%
+          column_to_rownames("Site") %>%
+          remove_empty(which = "rows") %>%
+          as.matrix()
+        sorted_colnames <- as.character(sort(as.numeric(colnames(var_mat))))
+        var_mat <- var_mat[, sorted_colnames]
+        print(head(var_mat))
+        print(dim(var_mat))
+        heatmap <- pheatmap(var_mat, angle_col = 0,
+                            
+                            fontsize = 16, 
+                            display_numbers = round(var_mat, 2), 
+                            number_color = "black", 
+                            #scale = "column",
+                            number_format = "%.2f", 
+                            legend = F,
+                            cluster_cols = F,
+                            cluster_rows = T,
+                            main = paste0("Means of ",var," by Site (MG ",gen,")"))
+        heatmap_plot(heatmap)
+        
+        
+      } else {
+        plot(NULL, main = "Data not available")
+      }
+      list(var_mat = var_mat, var = var)
+      
+    })
+  
+  
+  # Add the download handler here
+  output$downloadHeatmap <- downloadHandler(
+    filename = function() {
+      paste0("heatmap-", input$heatmapSelect, "-", Sys.Date(), ".png")
+    },
+    content = function(file) {
+      # Use the stored heatmap for the download
+      png(file, width = 1400, height = 1000)
+      grid::grid.draw(heatmap_plot()$gtable)  # Draw the stored heatmap
+      dev.off()
+    }
+  )
+  
   
   
   updateSiteSelectionBetweenUI <- function() {
@@ -672,10 +732,13 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "selectedSites_between", selected = character(0))
   })
   
-
+  
+  
+  
+  # Store the generated plot for download
+  between_sites_plot_data <- reactiveVal()
   
   output$plotBetweenSites <- renderPlot({
-    
     req(analysisDone())
     selected_sites <- input$selectedSites_between
     
@@ -685,7 +748,7 @@ server <- function(input, output, session) {
       summarize(acc_precip = mean(acc_precip, na.rm = TRUE),
                 acc_tt = mean(acc_tt, na.rm = TRUE))
     
-    ggplot(plot_dtt) +
+    p <- ggplot(plot_dtt) +
       aes(x = acc_precip, y = acc_tt) +
       geom_vline(aes(xintercept = mean(acc_precip)), color = "black", linetype = "dashed") + 
       geom_hline(aes(yintercept = mean(acc_tt)), color = "black", linetype = "dashed") +
@@ -694,8 +757,22 @@ server <- function(input, output, session) {
       labs(x = "Acc. Precipitation (mm)", y = "Acc. Thermal Time", 
            title = "10 Year Site Averages for a Typical Growing Season") +
       theme(legend.position = "none")
+    
+    between_sites_plot_data(p)  # Store the plot in a reactive value
+    print(p)  # Render the plot
   })
   
+  # Download handler for the between sites plot
+  output$downloadBetweenSitesPlot <- downloadHandler(
+    filename = function() {
+      paste0("between_sites_plot-", Sys.Date(), ".png")
+    },
+    content = function(file) {
+      png(file, width = 800, height = 600)
+      print(between_sites_plot_data())  # Print the stored plot
+      dev.off()
+    }
+  )
   
   
   
@@ -704,20 +781,8 @@ server <- function(input, output, session) {
     selectInput("selectSite", "Select Site", choices = unique(bigmet()$Site))
   })
   
-  output$plotWithinSites <- renderPlot({
-    req(input$selectSite, bigmet())
-    plot_data <- bigmet() %>% 
-      filter(Site == input$selectSite) %>% 
-      summarize(acc_precip = sum(rain), acc_tt = sum(tt))
-    
-    ggplot(plot_data, aes(x = acc_precip, y = acc_tt)) +
-      geom_point() +
-      geom_vline(aes(xintercept = mean(acc_precip)), color = "black", linetype = "dashed") +
-      geom_hline(aes(yintercept = mean(acc_tt)), color = "black", linetype = "dashed") +
-      labs(x = "Total Precipitation", y = "Total Thermal Time", title = input$selectSite) +
-      theme_minimal()
-  })
-
+  
+  
   
   
   # 

@@ -2,6 +2,7 @@
 #for over-performance / under-performance can use maturity checks as yield checks 
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
+
 #which of the seasonal variables are affecting the performance of the varieties
 
 # Start, set up trials_df -----
@@ -16,6 +17,7 @@ library(parallel)  # For parallel computing
 Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
+
 #codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
 codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
 #setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
@@ -23,6 +25,7 @@ setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_out
 
 crop <- "Soy" 
 trials_df <- read_csv(paste0(codes_dir,"/verify.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
@@ -44,7 +47,7 @@ if (crop == "Soy"){
 if (crop == "Maize"){
   corn_mats <- c(80,90,95,100,103,105,108,110,112,115,120,130)
   trials_df <- trials_df %>%
-    mutate(Mat = corn_mats[which.min(abs(corn_mats - Genetics))[1]]) %>%
+  mutate(Mat = corn_mats[which.min(abs(corn_mats - Genetics))[1]]) %>%
     mutate(Mat = paste0("B_",as.character(Mat)))
 }
 
@@ -137,10 +140,13 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
                     "paste0", "dir.create", "file.copy", "tryCatch", "print"))
 
+Sys.setlocale("LC_ALL", "English_United States")
+
 #edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
 
 # Parallel APSIM files creation
 apsimxfilecreate <- parLapply(cl, 1:nrow(trials_df), function(trial_n) {
+  Sys.setlocale("LC_ALL", "English_United States")
   trial_tmp <- trials_df[trial_n,]
   if(!dir.exists(paste0("apsim/trial_",trial_n))) {dir.create(paste0("apsim/trial_",trial_n))}
   source_dir <- paste0("apsim/trial_",trial_n)
@@ -194,11 +200,13 @@ for (batch in 1:num_batches) {
   # Run APSIM simulations in parallel for the current batch
   # Run APSIM simulations in parallel
   results <- parLapply(cl, trial_list, function(trial) {
+    Sys.setlocale("LC_ALL", "English_United States")
     trial_n <- trial$id_trial  # Assuming 'id_trial' is the identifier
     source_dir <- paste0("apsim/trial_", trial_n)
     filename <- paste0(crop, "_", trial_n, ".apsimx")
     output <- data.frame()  # Initialize an empty data frame for the results
-    
+    log_file <- paste0(source_dir, "/", crop, "_", trial_n, "_log.txt")
+    sink(log_file, append = TRUE)
     # Wrap APSIM simulation and result handling in tryCatch to handle any errors
     tryCatch({
       output_tmp <- apsimx(filename, src.dir = source_dir)
@@ -207,6 +215,8 @@ for (batch in 1:num_batches) {
       output <- rbind(output, output_tmp)
       # Save individual trial results
       write_csv(output_tmp, file = paste0(source_dir, "/", crop, "_", trial_n, "_out.csv"))
+      cat(sprintf("Successfully written file for trial %d", trial_n))
+      
       return(output)  # Return the output for this trial
     }, error = function(e){
       cat(paste0("Simulation for trial ", trial_n, " failed with error: ", e$message, "\n"))
@@ -268,6 +278,8 @@ max_stage <- daily_output %>%
   summarise(max_stage = max(max_stage)) %>% 
   pull() %>% 
   round()
+
+# Join and mutate
 
 daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
    mutate(Period = case_when(

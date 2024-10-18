@@ -226,7 +226,13 @@ Available for if you want to work with the unsummarized outputs yourself.
     analysisInProgress <- reactiveVal(FALSE)
     observe({
       req(analysisDone())
-    source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/visualization.R")
+      tryCatch({
+        source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/visualization.R")
+      }, error = function(e) {
+        # Handle the error here
+        cat("An error occurred while sourcing the file:", e$message, "\n")
+      })
+      
   })
   
     
@@ -299,7 +305,7 @@ Available for if you want to work with the unsummarized outputs yourself.
       crop <- input$cropType #  !!! ask Sam if this can be set via a button 
       writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
      
-        source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved.R")
+        source("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimximproved1.R")
       
       
       #update outputs and visaluzations

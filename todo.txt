@@ -1,0 +1,2 @@
+- Make sure VM is working with newest models 
+- Update online app to newest version

@@ -32,7 +32,11 @@
         {
           "$type": "Models.Climate.Weather, Models",
           "ConstantsFile": null,
+<<<<<<< HEAD
           "FileName": "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_33.met",
+=======
+          "FileName": "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_33.met",
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
           "ExcelWorkSheetName": "",
           "Name": "Weather",
           "ResourceName": null,
@@ -530,6 +534,7 @@
               "$type": "Models.PMF.Plant, Models",
               "Name": "Soybean",
               "ResourceName": "Soybean",
+<<<<<<< HEAD
               "Children": [
                 {
                   "$type": "Models.PMF.Cultivar, Models",
@@ -1072,6 +1077,9 @@
                   "ReadOnly": false
                 }
               ],
+=======
+              "Children": [],
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
               "Enabled": true,
               "ReadOnly": false
             },
@@ -1094,6 +1102,7 @@
             {
               "$type": "Models.Manager, Models",
               "CodeArray": [
+<<<<<<< HEAD
                 "using Models.Interfaces;",
                 "using APSIM.Shared.Utilities;",
                 "using Models.Utilities;",
@@ -1249,6 +1258,8 @@
             {
               "$type": "Models.Manager, Models",
               "CodeArray": [
+=======
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "using Models.Soils;",
                 "using System;",
                 "using System.Linq;",
@@ -1304,6 +1315,140 @@
             {
               "$type": "Models.Manager, Models",
               "CodeArray": [
+<<<<<<< HEAD
+=======
+                "using APSIM.Shared.Utilities;",
+                "using Models.Utilities;",
+                "using Models.Soils;",
+                "using Models.PMF;",
+                "using Models.Core;",
+                "using System;",
+                "using System.Linq;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable] ",
+                "    public class Script : Model",
+                "    {",
+                "",
+                "\t\t[Link] Summary Summary;",
+                "\t\t",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "        ",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "            if (Crop.IsReadyForHarvesting)",
+                "            {",
+                "            \tSummary.WriteMessage(this, \"Result: Harvested at Maturity.\", MessageType.Diagnostic);",
+                "                Crop.Harvest();",
+                "                Crop.EndCrop();",
+                "            }",
+                "        }",
+                "    }",
+                "}",
+                "       "
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                }
+              ],
+              "Name": "Harvest",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": false,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+                "using APSIM.Shared.Utilities;",
+                "using Models.Utilities;",
+                "using Models.Soils;",
+                "using Models.PMF;",
+                "using Models.Core;",
+                "using System;",
+                "using System.Linq;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable]",
+                "    public class Script : Model",
+                "    {",
+                "        [Link] Clock Clock;",
+                "        [Link] Fertiliser Fertiliser;",
+                "        [Link] Summary Summary;",
+                "        [Link] Soil Soil;",
+                "        ",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "",
+                "        [Description(\"Sowing date (d-mmm)\")]",
+                "        public string SowDate { get; set; }",
+                "",
+                "        [Display(Type = DisplayType.CultivarName)]",
+                "        [Description(\"Cultivar to be sown\")]",
+                "        public string CultivarName { get; set; }",
+                "",
+                "        [Description(\"Sowing depth (mm)\")]",
+                "        public double SowingDepth { get; set; }",
+                "",
+                "        [Description(\"Row spacing (mm)\")]",
+                "        public double RowSpacing { get; set; }",
+                "",
+                "        [Description(\"Plant population (/m2)\")]",
+                "        public double Population { get; set; }",
+                "",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "            if (DateUtilities.WithinDates(SowDate, Clock.Today, SowDate))",
+                "            {",
+                "                Crop.Sow(population: Population, cultivar: CultivarName, depth: SowingDepth, rowSpacing: RowSpacing);    ",
+                "            }",
+                "        }",
+                "    }",
+                "}"
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                },
+                {
+                  "Key": "SowDate",
+                  "Value": "26-May"
+                },
+                {
+                  "Key": "CultivarName",
+                  "Value": "Generic_MG1"
+                },
+                {
+                  "Key": "SowingDepth",
+                  "Value": "50"
+                },
+                {
+                  "Key": "RowSpacing",
+                  "Value": "500"
+                },
+                {
+                  "Key": "Population",
+                  "Value": "30"
+                }
+              ],
+              "Name": "Sow on a fixed date",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": true,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "using Models.Soils;",
                 "using System;",
                 "using System.Linq;",
@@ -1361,6 +1506,290 @@
             {
               "$type": "Models.Manager, Models",
               "CodeArray": [
+<<<<<<< HEAD
+=======
+                "using Models.Soils;",
+                "using System;",
+                "using Models.Functions;",
+                "using Models.Core;",
+                "using Models.PMF;",
+                "using APSIM.Shared.Utilities;",
+                "using System.Diagnostics;",
+                "using Models.Climate;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable]",
+                "    public class Script : Model",
+                "    {",
+                "        [Link] Clock clock;",
+                "        [Link] Zone zone;",
+                "        [Link] Weather weather;",
+                "        [Link] Summary Summary;",
+                "        [Link] IEvent events = null;",
+                "        ",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "        ",
+                "        [Separator(\"Triggers to kill the crop\")]",
+                "",
+                "        [Description(\"Number of days to wait before killing ungerminated plants\")] ",
+                "        public int GermWait { get; set; }  ",
+                "        ",
+                "        [Description(\"Number of days to wait before killing unemerged plants\")] ",
+                "        public int EmergWait { get; set; }  ",
+                "        ",
+                "        [Description(\"Kill if maximum daily tempterature is below (C)\")] ",
+                "        public double LethalFrost { get; set; }  ",
+                "        ",
+                "        private DateTime GerminationDeadline; ",
+                "        private DateTime EmergenceDeadline; ",
+                "        ",
+                "        [EventSubscribe(\"Sowing\")]",
+                "        private void OnSowing(object sender, EventArgs e)",
+                "        {",
+                "            GerminationDeadline = clock.Today.AddDays(GermWait);",
+                "            EmergenceDeadline = clock.Today.AddDays(EmergWait);",
+                "        }  ",
+                "        ",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "\t        if (Crop.IsAlive) ",
+                "\t        {",
+                "\t        \tdouble Stage = (double)Crop.FindByPath(\"Phenology.Stage\").Value; ",
+                "\t        \tdouble LAI = (double)Crop.FindByPath(\"Leaf.LAI\").Value; ",
+                "\t        \t",
+                "\t        \tif (clock.Today == GerminationDeadline && Stage < 2)",
+                "\t               {",
+                "\t               Summary.WriteMessage(this, \"Result: Failed to Germinate.\", MessageType.Diagnostic);",
+                "\t\t           Crop.Harvest();",
+                "\t\t           Crop.EndCrop();",
+                "\t\t        }",
+                "\t            else if (clock.Today == EmergenceDeadline && Stage < 3)",
+                "\t               {",
+                "\t               Summary.WriteMessage(this, \"Result: Failed to Emerge.\", MessageType.Diagnostic);",
+                "\t\t           Crop.Harvest();",
+                "\t\t           Crop.EndCrop();",
+                "\t\t        }",
+                "\t\t        else if (weather.MaxT <= LethalFrost && Stage < 9)",
+                "\t               {",
+                "\t               Summary.WriteMessage(this, \"Result: Dead from Frost.\", MessageType.Diagnostic);",
+                "\t\t           Crop.Harvest();",
+                "\t\t           Crop.EndCrop();",
+                "\t\t        }",
+                "\t\t        else if (LAI <= 0.001 && Stage > 4 && Stage < 10)",
+                "\t               {",
+                "\t               Summary.WriteMessage(this, \"Result: Dead from Total Senescence (0 LAI between Flowering and Maturation).\", MessageType.Diagnostic);",
+                "\t\t           Crop.Harvest();",
+                "\t\t           Crop.EndCrop();",
+                "\t\t        }",
+                "\t        }",
+                "        }",
+                "        ",
+                "    }",
+                "}"
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                },
+                {
+                  "Key": "GermWait",
+                  "Value": "30"
+                },
+                {
+                  "Key": "EmergWait",
+                  "Value": "30"
+                },
+                {
+                  "Key": "LethalFrost",
+                  "Value": "-2.2"
+                }
+              ],
+              "Name": "KillOnEvent",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": false,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+                "using APSIM.Shared.Utilities;",
+                "using Models.Utilities;",
+                "using Models.Soils;",
+                "using Models.PMF;",
+                "using Models.Core;",
+                "using System;",
+                "using System.Linq;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable] ",
+                "    public class Script : Model",
+                "    {",
+                "\t\t[Link] Summary Summary;",
+                "\t\t",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "        ",
+                "        [Description(\"Number of days to wait before killing stalled plants\")] ",
+                "        public int MaxStall { get; set; }  ",
+                "        public double PrevStage {get; set;}",
+                "        public int StalledFor {get; set;}",
+                "",
+                "        [EventSubscribe(\"StartOfSimulation\")]",
+                "        private void OnStartOfSimulation(object sender, EventArgs e)",
+                "        {",
+                "            double PrevStage = 0;",
+                "            double StalledFor = 0;",
+                "        }",
+                "        ",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "        double Stage = (double)Crop.FindByPath(\"Phenology.Stage\").Value; ",
+                "\t        if (Crop.IsAlive && Stage == PrevStage) {",
+                "\t        \tStalledFor += 1;",
+                "\t        \tif (StalledFor >= MaxStall)",
+                "\t        \t{",
+                "\t\t        \tSummary.WriteMessage(this, \"Result: Stalled, killed.\", MessageType.Diagnostic);",
+                "\t\t        \tStalledFor = 0;",
+                "\t\t        \tPrevStage = 0;",
+                "\t\t\t\t    Crop.Harvest();",
+                "\t\t\t\t    Crop.EndCrop();",
+                "\t        \t}",
+                "\t        } ",
+                "\t        else ",
+                "\t        {",
+                "\t        \tStalledFor = 0;",
+                "\t        }",
+                "        PrevStage = Stage;",
+                "        }",
+                "    }",
+                "}",
+                "       "
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                },
+                {
+                  "Key": "MaxStall",
+                  "Value": "14"
+                }
+              ],
+              "Name": "Stall kill",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": false,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Graph, Models",
+              "Caption": null,
+              "Axis": [
+                {
+                  "$type": "APSIM.Shared.Graphing.Axis, APSIM.Shared",
+                  "Title": "Date",
+                  "Position": 3,
+                  "Inverted": false,
+                  "CrossesAtZero": false,
+                  "LabelOnOneLine": false,
+                  "Minimum": null,
+                  "Maximum": null,
+                  "Interval": null
+                },
+                {
+                  "$type": "APSIM.Shared.Graphing.Axis, APSIM.Shared",
+                  "Title": null,
+                  "Position": 0,
+                  "Inverted": false,
+                  "CrossesAtZero": false,
+                  "LabelOnOneLine": false,
+                  "Minimum": null,
+                  "Maximum": null,
+                  "Interval": null
+                }
+              ],
+              "LegendPosition": 0,
+              "LegendOrientation": 0,
+              "AnnotationLocation": 0,
+              "DisabledSeries": [],
+              "LegendOutsideGraph": false,
+              "Name": "Graph",
+              "ResourceName": null,
+              "Children": [
+                {
+                  "$type": "Models.Series, Models",
+                  "Type": 1,
+                  "XAxis": 3,
+                  "YAxis": 0,
+                  "ColourArgb": -16777216,
+                  "FactorToVaryColours": null,
+                  "FactorToVaryMarkers": null,
+                  "FactorToVaryLines": null,
+                  "Marker": 0,
+                  "MarkerSize": 0,
+                  "Line": 0,
+                  "LineThickness": 0,
+                  "TableName": "Report",
+                  "XFieldName": "Date",
+                  "YFieldName": "Res0",
+                  "X2FieldName": null,
+                  "Y2FieldName": null,
+                  "ShowInLegend": false,
+                  "IncludeSeriesNameInLegend": false,
+                  "Cumulative": false,
+                  "CumulativeX": false,
+                  "Filter": null,
+                  "Name": "Series",
+                  "ResourceName": null,
+                  "Children": [],
+                  "Enabled": true,
+                  "ReadOnly": false
+                }
+              ],
+              "Enabled": true,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Report, Models",
+              "VariableNames": [
+                "[Clock].Today as Date",
+                "[Clock].Today.Year as Year",
+                "[Clock].Today.DayOfYear as DOY",
+                "[Phenology].CurrentPhaseName as StageName",
+                "[Phenology].Stage as Stage",
+                "[Weather].Rain as Rain",
+                "[Weather].Radn as Radn",
+                "[Weather].MaxT as MaxT",
+                "[Weather].MinT as MinT",
+                "[Soybean].Phenology.ThermalTime as ThermalTime",
+                "[Soybean].Grain.Wt*10 as Yieldkgha",
+                "[Leaf].FRGR as FracGrowthRate",
+                "[Photosynthesis].FN as NutrientStress",
+                "[Photosynthesis].FT as TempStress",
+                "[Photosynthesis].FW as WaterStress",
+                "[ReaperMan].Script.Result as Result"
+              ],
+              "EventNames": [
+                "[Clock].DoReport"
+              ],
+              "GroupByVariableName": null,
+              "Name": "Report",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": true,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "using APSIM.Shared.Utilities;",
                 "using Models.Utilities;",
                 "using Models.Soils;",
@@ -1404,7 +1833,10 @@
                 "        private DateTime EmergenceDeadline; ",
                 "        ",
                 "        public string Result {get; set;}  ",
+<<<<<<< HEAD
                 "        public string SimHarvestDate {get; set;}  ",
+=======
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "        ",
                 "        [EventSubscribe(\"StartOfSimulation\")]",
                 "        private void OnStartOfSimulation(object sender, EventArgs e)",
@@ -1483,9 +1915,12 @@
                 "\t        if (End == true) {",
                 "\t\t\t\tCrop.Harvest();",
                 "\t\t        Crop.EndCrop();",
+<<<<<<< HEAD
                 "\t            SimHarvestDate = Clock.Today.ToString(\"yyyy-MM-dd\");",
                 "\t        } else {",
                 "\t        \tSimHarvestDate = \"NA\";",
+=======
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "\t        }",
                 "      \t}",
                 "    }",
@@ -1515,6 +1950,7 @@
               "Children": [],
               "Enabled": true,
               "ReadOnly": false
+<<<<<<< HEAD
             },
             {
               "$type": "Models.Graph, Models",
@@ -1616,6 +2052,8 @@
               "Children": [],
               "Enabled": true,
               "ReadOnly": false
+=======
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
             }
           ],
           "Enabled": true,

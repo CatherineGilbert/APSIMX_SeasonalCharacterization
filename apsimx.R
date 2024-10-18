@@ -3,8 +3,6 @@
 #check that the actual maturity (DtM) and simulated maturities (stage DOYs) are accurate
 #investigate structural equation modeling
 
-#build a machine learning model directly off the seasonal parameters instead of just using the apsim yield output
-
 #which of the seasonal variables are affecting the performance of the varieties
 
 # Start, set up trials_df -----
@@ -20,15 +18,14 @@ Sys.setlocale("LC_ALL", "English_United States")
 start_time <- Sys.time() # track running time
 
 
-codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization" #where the folder with the codes is
-#codes_dir <- "~/GitHub/APSIMX_SeasonalCharacterization"
-#codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
-setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
-#setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
-#setwd("~/Library/CloudStorage/Box-Box/apsimx_output")
+#codes_dir <- "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main" #where the folder with the codes is
+codes_dir <- "/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization"
+#setwd("C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization-main/apsimx_output")
+setwd("C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output")
 
-crop <- "Maize" #  !!! ask Sam if this can be set via a button 
-trials_df <- read_csv(paste0(codes_dir,"/small_charact_dt.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+crop <- "Soy" 
+trials_df <- read_csv(paste0(codes_dir,"/verify.csv")) %>% distinct() %>% mutate(id_trial = row_number()) %>%
+
   rename(X = Longitude, Y = Latitude)
 locs_df <- select(trials_df, X, Y) %>% distinct() %>% mutate(id_loc = row_number())
 trials_df <- left_join(trials_df, locs_df)
@@ -142,7 +139,9 @@ file.copy(from = paste0(codes_dir, "/template_models/", crop, "_Template.apsimx"
 
 clusterExport(cl, c("trials_df", "codes_dir", "crop", "edit_apsimx", "edit_apsimx_replace_soil_profile", 
                     "paste0", "dir.create", "file.copy", "tryCatch", "print"))
+
 Sys.setlocale("LC_ALL", "English_United States")
+
 #edit the dates so the simulations runs from a month before sowing to a year afterward (max the end of the met file)
 
 # Parallel APSIM files creation
@@ -281,15 +280,15 @@ max_stage <- daily_output %>%
   round()
 
 # Join and mutate
-daily_output <- daily_output %>% 
-  left_join(select(trials_x, id_trial, MatDate_Sim, Planting), by = "id_trial") %>% 
-  mutate(Period = case_when(
-    Stage == 1 & (as_date(Date) < Planting) ~ 1,
-    Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max(Stage),
-    .default = floor(Stage)
-  )) %>% 
-  select(-MatDate_Sim) %>% 
-  mutate(Period = factor(Period, ordered = TRUE, levels = as.character(1:max_stage)))
+
+daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
+   mutate(Period = case_when(
+   Stage == 1 & (as_date(Date) < Planting) ~ 1,
+   Stage == 1 & (as_date(Date) > MatDate_Sim) ~ max_stage,
+   .default = floor(Stage)
+ )) %>% select(-MatDate_Sim) %>% 
+   mutate(Period = factor(Period, ordered = T, levels = as.character(1:max_stage)))
+
 # daily_output <- daily_output %>% left_join(select(trials_x, id_trial, MatDate_Sim, Planting)) %>% 
 #   mutate(Stage = case_match(
 #     Period,
@@ -326,7 +325,6 @@ unlink("output",recursive = T) ; dir.create("output")
 write_csv(trials_x, "output/trials_x.csv")
 write_csv(charact_x, "output/charact_x.csv")
 write_csv(daily_charact_x, "output/daily_charact_x.csv")
-
 
 #calculate time duration for running the code:
 end_time <- Sys.time()

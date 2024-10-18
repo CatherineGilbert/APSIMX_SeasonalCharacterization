@@ -1,10 +1,18 @@
+<<<<<<< HEAD
 !data from DayMet obtained through daymetr R pacakge. retrieved:  2024-10-18 13:37:52.803154
+=======
+!data from DayMet obtained through daymetr R pacakge. retrieved:  2024-07-10 15:22:29.368277
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
 [weather.met.weather]
 site =  noname
 latitude = 39.4889
 longitude = -96.17
 tav = 12.0906799501868
+<<<<<<< HEAD
 amp = 28.5181818181818 !calculated with the apsimx R package: 2024-10-18 13:37:52.852915
+=======
+amp =  27
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
 year day radn maxt mint rain vp swe
 () () (MJ/m2/day) (oC) (oC) (mm) (hPa) (kg/m2)
 2013 1 5.2840034316 -5.12 -12.63 0 2.3153 15.23

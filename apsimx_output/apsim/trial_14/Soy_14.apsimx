@@ -32,7 +32,11 @@
         {
           "$type": "Models.Climate.Weather, Models",
           "ConstantsFile": null,
+<<<<<<< HEAD
           "FileName": "C:/Users/sam/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_11.met",
+=======
+          "FileName": "C:/Users/cmg3/Documents/GitHub/APSIMX_SeasonalCharacterization/apsimx_output/met/loc_11.met",
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
           "ExcelWorkSheetName": "",
           "Name": "Weather",
           "ResourceName": null,
@@ -1304,6 +1308,140 @@
             {
               "$type": "Models.Manager, Models",
               "CodeArray": [
+<<<<<<< HEAD
+=======
+                "using APSIM.Shared.Utilities;",
+                "using Models.Utilities;",
+                "using Models.Soils;",
+                "using Models.PMF;",
+                "using Models.Core;",
+                "using System;",
+                "using System.Linq;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable] ",
+                "    public class Script : Model",
+                "    {",
+                "",
+                "\t\t[Link] Summary Summary;",
+                "\t\t",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "        ",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "            if (Crop.IsReadyForHarvesting)",
+                "            {",
+                "            \tSummary.WriteMessage(this, \"Result: Harvested at Maturity.\", MessageType.Diagnostic);",
+                "                Crop.Harvest();",
+                "                Crop.EndCrop();",
+                "            }",
+                "        }",
+                "    }",
+                "}",
+                "       "
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                }
+              ],
+              "Name": "Harvest",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": false,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+                "using APSIM.Shared.Utilities;",
+                "using Models.Utilities;",
+                "using Models.Soils;",
+                "using Models.PMF;",
+                "using Models.Core;",
+                "using System;",
+                "using System.Linq;",
+                "",
+                "namespace Models",
+                "{",
+                "    [Serializable]",
+                "    public class Script : Model",
+                "    {",
+                "        [Link] Clock Clock;",
+                "        [Link] Fertiliser Fertiliser;",
+                "        [Link] Summary Summary;",
+                "        [Link] Soil Soil;",
+                "        ",
+                "        [Description(\"Crop\")]",
+                "        public IPlant Crop { get; set; }",
+                "",
+                "        [Description(\"Sowing date (d-mmm)\")]",
+                "        public string SowDate { get; set; }",
+                "",
+                "        [Display(Type = DisplayType.CultivarName)]",
+                "        [Description(\"Cultivar to be sown\")]",
+                "        public string CultivarName { get; set; }",
+                "",
+                "        [Description(\"Sowing depth (mm)\")]",
+                "        public double SowingDepth { get; set; }",
+                "",
+                "        [Description(\"Row spacing (mm)\")]",
+                "        public double RowSpacing { get; set; }",
+                "",
+                "        [Description(\"Plant population (/m2)\")]",
+                "        public double Population { get; set; }",
+                "",
+                "        [EventSubscribe(\"DoManagement\")]",
+                "        private void OnDoManagement(object sender, EventArgs e)",
+                "        {",
+                "            if (DateUtilities.WithinDates(SowDate, Clock.Today, SowDate))",
+                "            {",
+                "                Crop.Sow(population: Population, cultivar: CultivarName, depth: SowingDepth, rowSpacing: RowSpacing);    ",
+                "            }",
+                "        }",
+                "    }",
+                "}"
+              ],
+              "Parameters": [
+                {
+                  "Key": "Crop",
+                  "Value": "[Soybean]"
+                },
+                {
+                  "Key": "SowDate",
+                  "Value": "18-May"
+                },
+                {
+                  "Key": "CultivarName",
+                  "Value": "Generic_MG1"
+                },
+                {
+                  "Key": "SowingDepth",
+                  "Value": "50"
+                },
+                {
+                  "Key": "RowSpacing",
+                  "Value": "500"
+                },
+                {
+                  "Key": "Population",
+                  "Value": "30"
+                }
+              ],
+              "Name": "Sow on a fixed date",
+              "ResourceName": null,
+              "Children": [],
+              "Enabled": true,
+              "ReadOnly": false
+            },
+            {
+              "$type": "Models.Manager, Models",
+              "CodeArray": [
+>>>>>>> d107c5a27fb61af52bb38f3c36ebcebfc823a6b7
                 "using Models.Soils;",
                 "using System;",
                 "using System.Linq;",

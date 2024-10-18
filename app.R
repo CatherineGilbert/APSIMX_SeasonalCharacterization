@@ -64,7 +64,7 @@ ui <- fluidPage(
         br(),
         h3("Dataset Descriptions"),
         p(strong("charact_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation."),
-        p(strong("trials_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation."),
+        p(strong("trials_x:"), " Contains simulation parameters, identifying information, and values which aren’t summarized by stage."),
         p(strong("daily_charact_x:"), " Contains the recorded values of the reporting variables at each day of each simulation."),
         uiOutput("progressBar")  # Display the progress bar here
       )

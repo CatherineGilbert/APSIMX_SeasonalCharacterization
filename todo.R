@@ -7,11 +7,6 @@ and I can grab a maize example from Iris
 # move the input file out of the outputs folder.
 
 
-# internally:
-# make N/A sowing dates a viable choice
-# make sure the after-harvest period isn't being returned as NA
-
-
 Major Issues:
 1. trials_df not found: process with shiny app and parallel programming, not updated environment after each step. 
 2. display of facted comparision and between sites, similar issues with environmental variables. 

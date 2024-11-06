@@ -1,2 +1,7 @@
 - Make sure VM is working with newest models 
 - Update online app to newest version
+- Update descriptions of outputs in the results section
+- Download .NET framework to get the tool running?
+- Provide example description of an input file (ex: column descriptions), and a way to download example input files for both maize and soybean.
+- You can ditch the progress bar and create a display for the program log. :] The progress bar seems to have been difficult, and the log is more informative. 
+- Add a sign that the tool is currently in use by someone else if a second user accesses it. 

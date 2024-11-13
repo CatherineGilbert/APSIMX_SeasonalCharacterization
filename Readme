@@ -1,3 +1,8 @@
-apsimximproved : the actual analysis code
-app.R: most up to date app code
-visualization.R: visualization code used to generate graphs
+Uses APSIM + the R apsimx package to produce seasonal covariates for maize/soy trials. "apsimx.R" is the main script. 
+
+The input file format is a .csv with the columns "Site", "Latitude", "Longitude", "Genetics," "Planting", and "Year".
+* “Site” should be the name identifier for that location. 
+* “Latitude” and “Longitude” are standard numeric WGS84 coordinates. 
+* “Genetics” refers to the cultivar maturity. For soybean, genetics is a numeric in the range -2 -- 8 (corresponding to maturity groups 000 -- VIII), with .
+* "Year" is the year as a numeric. 
+* “Planting” is the day on which the trial is planted, in YYYY-MM-DD format. 

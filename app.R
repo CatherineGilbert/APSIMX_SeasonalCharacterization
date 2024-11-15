@@ -20,6 +20,8 @@ library(tidyr)
 library(zip)
 
 
+key_available <- TRUE  # Declare globally for session control
+
 # Define UI
 ui <- dashboardPage(
   dashboardHeader(
@@ -118,11 +120,20 @@ ui <- dashboardPage(
                 actionButton("runAnalysis", "Run Analysis", icon = icon("play")),
                 downloadButton("downloadData", "Download Results"),
                 br(),
-                h3("Dataset Descriptions"),
-                p(strong("charact_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation. 
-"),
-                p(strong("trials_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation. 
-"),
+                h3("Console Output"),
+                verbatimTextOutput("consoleLog"),  # Display the log here
+                
+                # Add sample input file download and description
+                h3("Example Input File"),
+                p("Download an example input file:"),
+                downloadButton("downloadExample", "Download Example Input File", icon = icon("download")),
+                # Describe required columns and data types
+                h3("Expected Columns and Data Types"),
+                tableOutput("columnInfo"),  # Render table below
+                
+                h4("Dataset Descriptions"),
+                p(strong("charact_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation."),
+                p(strong("trials_x:"), " Contains simulation parameters, identifying information, and values which aren’t summarized by stage."),
                 p(strong("daily_charact_x:"), " Contains the environmental and developmental variables summarized for each stage of each simulation.Contains the recorded values of the reporting variables at each day of each simulation.
 Available for if you want to work with the unsummarized outputs yourself.
  
@@ -214,27 +225,82 @@ Available for if you want to work with the unsummarized outputs yourself.
 # Define server logic
 server <- function(input, output, session) {
   
+  clear_progress_log <- function() {
+    fileConn <- file("progress.log", "w")
+    close(fileConn)
+  }
+
+  session$onSessionEnded(function() {
+    # Release the key only if this session holds it
+    if (have_key) {
+      key_available <<- TRUE
+      have_key <<- FALSE
+    }
+    print("successfully ending a session!!!!!")
+  })
+  
+  # Session starts, Read data in
+  have_key <- FALSE
+  
+  observe({
+    invalidateLater(1000)
+    
+    if(key_available){
+      key_available <<- FALSE
+      have_key <<- TRUE
+    }
+    
+  })
+  observe({
+    if (!have_key) {
+      # Show a page indicating the app is in use
+      showModal(modalDialog(
+        title = "App in Use",
+        "The application is currently in use by another user. Please wait until the current session ends.",
+        easyClose = TRUE,
+        footer = NULL
+      ))
+      # Redirect to a static placeholder page
+      invalidateLater(3000, session)  # Wait for 3 seconds
+      session$sendCustomMessage("redirect", list(url = "about:blank"))  # Redirect to a blank page
+      session$close()
+    }
+  })
+  
+
   gen <- 1 # should be selectable for heatmap
   setwd("/srv/shiny-server/shiny-app/apsimx_output")
   # Path to the scripts and results
   codesPath <- "/srv/shiny-server/shiny-app"
-  resultFolderPath <- "/srv/shiny-server/shiny-app/apsimx_output/output"
+   resultFolderPath <- "/srv/shiny-server/shiny-app/apsimx_output/output"
   heatmap_plot <- reactiveVal(NULL)
   # Reactive values for storing the analysis state and the selected variable
   #analysisDone <- reactiveVal(FALSE)
   analysisDone <- reactiveVal(TRUE)
   analysisInProgress <- reactiveVal(FALSE)
+  
   observe({
     req(analysisDone())
     tryCatch({
-      source("/srv/shiny-server/shiny-app/visual.R")
+      source(file.path(codesPath, "visual.R"))
     }, error = function(e) {
       # Handle the error here
       cat("An error occurred while sourcing the file:", e$message, "\n")
     })
     
   })
+  # Clear the log file by overwriting it with an empty string
+  clear_log <- function() {
+    write("", file = "progress.log")
+  }
+  #clear_log()
+  # Reactive to read the log file every 1 second
+  log_content <- reactiveFileReader(1000, session, "progress.log", readLines)
   
+  # Display log content in UI
+  output$consoleLog <- renderText({
+    paste(log_content(), collapse = "\n")
+  })
   
   
   
@@ -252,7 +318,7 @@ server <- function(input, output, session) {
   observe({
     
     invalidateLater(5000, session)
-    setwd("/srv/shiny-server/shiny-app/apsimx_output")
+    
     if (file.exists("progress.log")) {
       log_contents <- readLines("progress.log")
       # Update progress based on the log contents
@@ -273,6 +339,9 @@ server <- function(input, output, session) {
   selectedVariable <- reactiveVal()
   trials_df <- reactiveVal()
   observeEvent(input$fileUpload, {
+    
+    clear_progress_log() 
+    
     if (!dir.exists(resultFolderPath)) {
       dir.create(resultFolderPath, recursive = TRUE)
     }
@@ -297,17 +366,15 @@ server <- function(input, output, session) {
     analysisInProgress(TRUE)
     
     
-    setwd("/srv/shiny-server/shiny-app/apsimx_output")
+    
     #setwd("C:/Users/cmg3/Box/Gilbert/apsimx_output")
     
     file.create("progress.log")
     
     crop <- input$cropType #  !!! ask Sam if this can be set via a button 
-
-    crop <- "Soy"
     writeLines(crop, paste0(codesPath, "/selected_crop.txt"))
     
-    source("/srv/shiny-server/shiny-app/apsimhelper.R")
+    source(file.path(codesPath, "apsimhelper.R"))
     
     
     #update outputs and visaluzations
@@ -377,6 +444,17 @@ server <- function(input, output, session) {
       )
     })
   }
+  
+  
+  output$downloadExample <- downloadHandler(
+    filename = function() {
+      "soy_example_input.csv"
+    },
+    content = function(file) {
+      download.file("https://raw.githubusercontent.com/CatherineGilbert/APSIMX_SeasonalCharacterization/main/soy_example_input.csv", file, mode = "wb")
+    }
+  )
+  
   
   observeEvent(input$selectAllSites, {
     trials_df <- read_csv(paste0(resultFolderPath, "/trials_x.csv"))
@@ -733,8 +811,22 @@ server <- function(input, output, session) {
     })
   })
   
-  
-  
+  #info for sample input 
+  output$columnInfo <- renderTable({
+    # Define column names, datatypes, and descriptions based on your example file
+    data.frame(
+      Column = c("Site", "Latitude", "Longitude", "Genetics", "PlantingDate", "Year"),
+      DataType = c("Character", "Numeric", "Numeric", "Integer", "Date", "Integer"),
+      Description = c(
+        "Unique identifier for the site of the trial",
+        "Latitude of the trial site in decimal degrees",
+        "Longitude of the trial site in decimal degrees",
+        "Genetic type identifier of the crop used in the trial",
+        "Date when planting was done (YYYY-MM-DD format)",
+        "Year of the trial"
+      )
+    )
+  })
   
   
   
@@ -913,4 +1005,3 @@ server <- function(input, output, session) {
 
 # Run the app
 shinyApp(ui = ui, server = server)
-

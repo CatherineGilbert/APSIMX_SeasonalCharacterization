@@ -680,7 +680,7 @@
                 },
                 {
                   "Key": "CultivarName",
-                  "Value": "A_120"
+                  "Value": "B_80"
                 },
                 {
                   "Key": "SowingDepth",
@@ -954,7 +954,7 @@
               "Parameters": [
                 {
                   "Key": "GermWait",
-                  "Value": "30"
+                  "Value": "40"
                 },
                 {
                   "Key": "EmergWait",

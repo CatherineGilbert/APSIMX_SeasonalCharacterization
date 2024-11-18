@@ -1,4 +1,4 @@
-Site,Latitude,Longitude,Genetics,Planting,Year
+Site,Latitude,Longitude,Genetics,PlantingDate,Year
 crookston_mn,47.805,-96.61426667,-1,2019-05-17,2019
 roseau_mn,48.1623,-96.0419,-1,2019-05-18,2019
 thiefriverfalls_mn,48.1283,-96.2427,-1,2019-05-18,2019
